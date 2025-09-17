@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, X, Database } from 'lucide-react';
-import { processFileWithEncoding, processCSVData } from '../lib/dataProcessor';
+import { processFileWithEncoding, parseCSV } from '../lib/dataProcessor';
 
 const FileUpload = ({ onDataProcessed, onReset }) => {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -59,7 +59,7 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
       });
 
       const text = await response.text();
-      const result = processCSVData(text);
+      const result = parseCSV(text);
       
       setProcessingDetails({
         step: 'Finalizando...',

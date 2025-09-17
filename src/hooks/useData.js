@@ -148,17 +148,18 @@ export function useData() {
       
       // Resetar filtros para estado inicial
       setFilters({
+        period: 'all',
+        questionnaire: 'all',
+        goals: {
+          QS: 4.0,
+          QO: 4.0,
+          QI: 4.0
+        },
         demographic: {
           sexo: [],
           idade: [],
           escolaridade: [],
-          funcionarioPublico: []
-        },
-        questionType: 'all',
-        goals: {
-          QS: 4.0,
-          QI: 4.0,
-          QO: 4.0
+          servidor: []
         }
       });
 
@@ -166,7 +167,8 @@ export function useData() {
       const newData = processedData;
       const isTransparency = newData.type === 'transparency';
       
-      console.log(`📊 Carregando dados do tipo: ${isTransparency ? 'Transparência (8 questões)' : 'Completo (20 questões)'}`);      console.log(`📈 Total de registros: ${newData.data.length}`);
+      console.log(`📊 Carregando dados do tipo: ${isTransparency ? 'Transparência (8 questões)' : 'Completo (20 questões)'}`);
+      console.log(`📈 Total de registros: ${newData.data.length}`);
       
       // SUBSTITUIÇÃO COMPLETA: Não manter dados anteriores
       const cleanData = {

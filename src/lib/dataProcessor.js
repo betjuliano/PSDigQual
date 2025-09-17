@@ -64,6 +64,113 @@ const LIKERT_MAPPING = {
   'Concordo totalmente': 5
 };
 
+// Faixas etárias utilizadas na aplicação
+const AGE_RANGE_LABELS = [
+  'Até 20 anos',
+  'De 21 a 23 anos',
+  'De 24 a 32 anos',
+  'Acima de 33 anos'
+];
+
+function normalizeText(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : value;
+}
+
+function getAgeRangeFromNumber(age) {
+  if (age === null || age === undefined || Number.isNaN(age)) {
+    return null;
+  }
+
+  if (age <= 20) return 'Até 20 anos';
+  if (age <= 23) return 'De 21 a 23 anos';
+  if (age <= 32) return 'De 24 a 32 anos';
+  return 'Acima de 33 anos';
+}
+
+function determineAgeRange(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === 'number') {
+    return getAgeRangeFromNumber(value);
+  }
+
+  const stringValue = String(value).trim();
+  if (stringValue === '') {
+    return null;
+  }
+
+  if (AGE_RANGE_LABELS.includes(stringValue)) {
+    return stringValue;
+  }
+
+  const normalizedNumber = Number(stringValue.replace(',', '.'));
+  if (!Number.isNaN(normalizedNumber)) {
+    return getAgeRangeFromNumber(normalizedNumber);
+  }
+
+  const numberMatches = stringValue.match(/\d+/g);
+  if (numberMatches && numberMatches.length > 0) {
+    const numbers = numberMatches
+      .map(match => Number(match))
+      .filter(num => !Number.isNaN(num));
+
+    if (numbers.length > 0) {
+      if (numbers.length >= 2) {
+        const min = Math.min(...numbers);
+        const max = Math.max(...numbers);
+        const rangeCategories = new Set([
+          getAgeRangeFromNumber(min),
+          getAgeRangeFromNumber(max)
+        ].filter(Boolean));
+
+        if (rangeCategories.size === 1) {
+          return rangeCategories.values().next().value;
+        }
+
+        const average = (min + max) / 2;
+        return getAgeRangeFromNumber(average);
+      }
+
+      return getAgeRangeFromNumber(numbers[0]);
+    }
+  }
+
+  return stringValue;
+}
+
+function normalizeServidorResponse(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const stringValue = String(value).trim();
+  if (stringValue === '') {
+    return null;
+  }
+
+  const normalized = stringValue.toLowerCase();
+
+  if (normalized === 'sim' || normalized === 'yes') {
+    return 'Sim';
+  }
+
+  if (normalized === 'não' || normalized === 'nao' || normalized === 'no') {
+    return 'Não';
+  }
+
+  if (normalized.includes('não') || normalized.includes('nao')) {
+    return 'Não';
+  }
+
+  if (normalized.includes('funcion') || normalized.includes('servid')) {
+    return 'Sim';
+  }
+
+  return stringValue;
+}
+
 // Função para detectar encoding e processar CSV
 export function processCSVData(csvText, encoding = 'utf-8') {
   try {
@@ -275,57 +382,77 @@ function readFileAsText(file, encoding = 'UTF-8') {
 
 // Função para calcular médias por questão
 export function calculateQuestionAverages(dataset) {
-  if (!dataset || !dataset.data || dataset.data.length === 0) {
+  if (!dataset || !Array.isArray(dataset.data) || dataset.data.length === 0) {
     return {};
   }
 
-  const averages = {};
-  const counts = {};
+  const accumulator = {};
 
-  // Inicializar contadores
   dataset.data.forEach(row => {
-    Object.keys(row).forEach(key => {
-      if (key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO')) {
-        if (!averages[key]) {
-          averages[key] = 0;
-          counts[key] = 0;
-        }
-        if (typeof row[key] === 'number' && !isNaN(row[key])) {
-          averages[key] += row[key];
-          counts[key]++;
-        }
+    if (!row) return;
+
+    Object.entries(row).forEach(([key, value]) => {
+      if (!key || (!key.startsWith('QS') && !key.startsWith('QI') && !key.startsWith('QO'))) {
+        return;
+      }
+
+      if (!accumulator[key]) {
+        accumulator[key] = { sum: 0, count: 0 };
+      }
+
+      const numericValue = typeof value === 'number' ? value : Number(value);
+      if (!Number.isNaN(numericValue)) {
+        accumulator[key].sum += numericValue;
+        accumulator[key].count += 1;
       }
     });
   });
 
-  // Calcular médias
-  Object.keys(averages).forEach(key => {
-    if (counts[key] > 0) {
-      averages[key] = averages[key] / counts[key];
+  const result = {};
+
+  Object.entries(accumulator).forEach(([code, stats]) => {
+    if (!stats || stats.count === 0) {
+      return;
     }
+
+    const dimension = DIMENSION_MAPPING[code];
+    result[code] = {
+      average: stats.sum / stats.count,
+      count: stats.count,
+      sum: stats.sum,
+      dimension,
+      question: getQuestionText(code)
+    };
   });
 
-  return averages;
+  return result;
 }
 
 // Função para calcular médias por dimensão
 export function calculateDimensionAverages(questionAverages) {
-  const dimensions = { QS: [], QO: [], QI: [] };
+  const dimensionTotals = {
+    QS: { sum: 0, count: 0 },
+    QO: { sum: 0, count: 0 },
+    QI: { sum: 0, count: 0 }
+  };
 
-  Object.keys(questionAverages).forEach(questionCode => {
+  Object.entries(questionAverages || {}).forEach(([questionCode, data]) => {
     const dimension = DIMENSION_MAPPING[questionCode];
-    if (dimension && dimensions[dimension]) {
-      dimensions[dimension].push(questionAverages[questionCode]);
+    if (!dimension || !dimensionTotals[dimension]) {
+      return;
+    }
+
+    const value = typeof data === 'number' ? data : data?.average;
+    if (typeof value === 'number' && !Number.isNaN(value)) {
+      dimensionTotals[dimension].sum += value;
+      dimensionTotals[dimension].count += 1;
     }
   });
 
   const dimensionAverages = {};
-  Object.keys(dimensions).forEach(dim => {
-    if (dimensions[dim].length > 0) {
-      dimensionAverages[dim] = dimensions[dim].reduce((sum, val) => sum + val, 0) / dimensions[dim].length;
-    } else {
-      dimensionAverages[dim] = 0;
-    }
+
+  Object.entries(dimensionTotals).forEach(([dimension, stats]) => {
+    dimensionAverages[dimension] = stats.count > 0 ? stats.sum / stats.count : 0;
   });
 
   return dimensionAverages;
@@ -339,8 +466,11 @@ export function classifyQuestions(questionAverages, goals) {
     positive: []
   };
 
-  Object.keys(questionAverages).forEach(questionCode => {
-    const average = questionAverages[questionCode];
+  Object.entries(questionAverages || {}).forEach(([questionCode, data]) => {
+    const average = typeof data === 'number' ? data : data?.average;
+    if (typeof average !== 'number' || Number.isNaN(average)) {
+      return;
+    }
     const dimension = DIMENSION_MAPPING[questionCode];
     const goal = goals[dimension] || 4.0;
 
@@ -348,7 +478,8 @@ export function classifyQuestions(questionAverages, goals) {
       code: questionCode,
       average,
       dimension,
-      question: getQuestionText(questionCode)
+      question: (typeof data === 'object' && data?.question) ? data.question : getQuestionText(questionCode),
+      count: typeof data === 'object' ? data?.count : undefined
     };
 
     if (average < 3.0) {
@@ -389,19 +520,17 @@ export function extractProfileData(dataset) {
     const sexoKey = Object.keys(row).find(key => key.toLowerCase().includes('sexo'));
     const sexo = row[sexoKey];
     if (sexo) {
-      profileData.sexo[sexo] = (profileData.sexo[sexo] || 0) + 1;
+      const normalizedSexo = typeof sexo === 'string' ? sexo.trim() : sexo;
+      if (normalizedSexo) {
+        profileData.sexo[normalizedSexo] = (profileData.sexo[normalizedSexo] || 0) + 1;
+      }
     }
 
     // Processar idade com categorização
     const idadeKey = Object.keys(row).find(key => key.toLowerCase().includes('idade'));
-    const idade = parseInt(row[idadeKey]);
-    if (!isNaN(idade)) {
-      let faixaIdade;
-      if (idade <= 20) faixaIdade = 'Até 20 anos';
-      else if (idade <= 23) faixaIdade = 'De 21 a 23 anos';
-      else if (idade <= 32) faixaIdade = 'De 24 a 32 anos';
-      else faixaIdade = 'Acima de 33 anos';
-      
+    const idadeValue = idadeKey ? row[idadeKey] : undefined;
+    const faixaIdade = determineAgeRange(idadeValue);
+    if (faixaIdade) {
       profileData.idade[faixaIdade] = (profileData.idade[faixaIdade] || 0) + 1;
     }
 
@@ -409,7 +538,10 @@ export function extractProfileData(dataset) {
     const escolaridadeKey = Object.keys(row).find(key => key.toLowerCase().includes('escolaridade'));
     const escolaridade = row[escolaridadeKey];
     if (escolaridade) {
-      profileData.escolaridade[escolaridade] = (profileData.escolaridade[escolaridade] || 0) + 1;
+      const normalizedEscolaridade = typeof escolaridade === 'string' ? escolaridade.trim() : escolaridade;
+      if (normalizedEscolaridade) {
+        profileData.escolaridade[normalizedEscolaridade] = (profileData.escolaridade[normalizedEscolaridade] || 0) + 1;
+      }
     }
 
     // Processar funcionário público (incluindo variações como servidor público)
@@ -425,15 +557,16 @@ export function extractProfileData(dataset) {
     });
     const funcionarioPublico = row[funcionarioKey];
     if (funcionarioPublico) {
-      // Normalizar as respostas para padronizar funcionário e servidor público
-      let normalizedResponse = funcionarioPublico;
-      if (funcionarioPublico.toLowerCase() === 'sim') {
-        normalizedResponse = 'Funcionário/Servidor Público';
-      } else if (funcionarioPublico.toLowerCase() === 'não' || funcionarioPublico.toLowerCase() === 'nao') {
-        normalizedResponse = 'Não é Funcionário Público';
+      const normalizedResponse = normalizeServidorResponse(funcionarioPublico);
+      if (normalizedResponse) {
+        const label = normalizedResponse === 'Sim'
+          ? 'Funcionário/Servidor Público'
+          : normalizedResponse === 'Não'
+            ? 'Não é Funcionário Público'
+            : normalizedResponse;
+
+        profileData.funcionarioPublico[label] = (profileData.funcionarioPublico[label] || 0) + 1;
       }
-      
-      profileData.funcionarioPublico[normalizedResponse] = (profileData.funcionarioPublico[normalizedResponse] || 0) + 1;
     }
   });
 
@@ -444,14 +577,17 @@ export function extractProfileData(dataset) {
 export function getRecommendationsForCriticalQuestions(questionAverages, goals) {
   const recommendations = [];
   
-  Object.keys(questionAverages).forEach(questionCode => {
-    const average = questionAverages[questionCode];
-    const dimension = DIMENSION_MAPPING[questionCode];
-    
+  Object.entries(questionAverages || {}).forEach(([questionCode, data]) => {
+    const average = typeof data === 'number' ? data : data?.average;
+    if (typeof average !== 'number' || Number.isNaN(average)) {
+      return;
+    }
+    const dimension = (typeof data === 'object' && data?.dimension) ? data.dimension : DIMENSION_MAPPING[questionCode];
+
     if (average < 3.0) {
       const recommendation = {
         questionCode,
-        question: getQuestionText(questionCode),
+        question: (typeof data === 'object' && data?.question) ? data.question : getQuestionText(questionCode),
         average,
         dimension: getDimensionName(dimension),
         actions: getActionsForQuestion(questionCode, dimension)
@@ -608,69 +744,86 @@ function getActionsForQuestion(questionCode, dimension) {
 }
 
 export function filterDataByDemographics(dataset, demographicFilters) {
-  if (!dataset || !dataset.data) {
+  if (!dataset) {
     return dataset;
   }
 
-  // Verificar se há filtros ativos
-  const hasActiveFilters = Object.values(demographicFilters).some(filter => filter.length > 0);
-  
+  const dataArray = Array.isArray(dataset) ? dataset : dataset.data;
+
+  if (!Array.isArray(dataArray) || dataArray.length === 0) {
+    return dataset;
+  }
+
+  const filters = demographicFilters || { sexo: [], idade: [], escolaridade: [], servidor: [] };
+  const hasActiveFilters = Object.values(filters).some(filter => filter.length > 0);
+
   if (!hasActiveFilters) {
     return dataset;
   }
 
-  const filteredData = dataset.data.filter(row => {
+  const normalizedSexFilters = (filters.sexo || []).map(option => normalizeText(option));
+  const normalizedEducationFilters = (filters.escolaridade || []).map(option => normalizeText(option));
+  const normalizedServidorFilters = (filters.servidor || []).map(option => normalizeText(normalizeServidorResponse(option) || option));
+
+  const filteredData = dataArray.filter(row => {
     // Filtro por sexo
-    if (demographicFilters.sexo.length > 0) {
+    if (filters.sexo.length > 0) {
       const sexoKey = Object.keys(row).find(key => key.toLowerCase().includes('sexo'));
       const sexo = row[sexoKey];
-      if (!demographicFilters.sexo.includes(sexo)) {
+      const normalizedSexo = normalizeText(sexo);
+      const hasSexoMatch = normalizedSexFilters.some(option => option === normalizedSexo);
+      if (!hasSexoMatch) {
         return false;
       }
     }
 
     // Filtro por idade
-    if (demographicFilters.idade.length > 0) {
+    if (filters.idade.length > 0) {
       const idadeKey = Object.keys(row).find(key => key.toLowerCase().includes('idade'));
-      const idade = parseInt(row[idadeKey]);
-      
-      let matchesAge = false;
-      for (const faixa of demographicFilters.idade) {
-        if (faixa === '18-25' && idade >= 18 && idade <= 25) matchesAge = true;
-        if (faixa === '26-35' && idade >= 26 && idade <= 35) matchesAge = true;
-        if (faixa === '36-45' && idade >= 36 && idade <= 45) matchesAge = true;
-        if (faixa === '46-55' && idade >= 46 && idade <= 55) matchesAge = true;
-        if (faixa === '56+' && idade >= 56) matchesAge = true;
+      const idadeValue = idadeKey ? row[idadeKey] : undefined;
+      const faixaIdade = determineAgeRange(idadeValue);
+      if (!faixaIdade) {
+        return false;
       }
-      
-      if (!matchesAge) {
+
+      const hasAgeMatch = filters.idade.some(faixa => faixa === faixaIdade);
+      if (!hasAgeMatch) {
         return false;
       }
     }
 
     // Filtro por escolaridade
-    if (demographicFilters.escolaridade.length > 0) {
+    if (filters.escolaridade.length > 0) {
       const escolaridadeKey = Object.keys(row).find(key => key.toLowerCase().includes('escolaridade'));
       const escolaridade = row[escolaridadeKey];
-      if (!demographicFilters.escolaridade.includes(escolaridade)) {
+      const normalizedEscolaridade = normalizeText(escolaridade);
+      const hasEscolaridadeMatch = normalizedEducationFilters.some(option => option === normalizedEscolaridade);
+      if (!hasEscolaridadeMatch) {
         return false;
       }
     }
 
     // Filtro por servidor público
-    if (demographicFilters.servidor.length > 0) {
-      const servidorKey = Object.keys(row).find(key => 
-        key.toLowerCase().includes('servidor') || 
+    if (filters.servidor.length > 0) {
+      const servidorKey = Object.keys(row).find(key =>
+        key.toLowerCase().includes('servidor') ||
         key.toLowerCase().includes('público')
       );
       const servidor = row[servidorKey];
-      if (!demographicFilters.servidor.includes(servidor)) {
+      const normalizedServidor = normalizeServidorResponse(servidor);
+      const normalizedServidorValue = normalizeText(normalizedServidor);
+      const hasServidorMatch = normalizedServidorFilters.some(option => option === normalizedServidorValue);
+      if (!hasServidorMatch) {
         return false;
       }
     }
 
     return true;
   });
+
+  if (Array.isArray(dataset)) {
+    return filteredData;
+  }
 
   return {
     ...dataset,

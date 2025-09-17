@@ -1,34 +1,89 @@
 // Dados de exemplo para teste da aplicação PSDigQual
 
-export const sampleCompleteData = {
+// Mapeamento de respostas Likert para números
+const LIKERT_MAPPING = {
+  'Discordo totalmente': 1,
+  'Discordo': 2,
+  'Não sei': 3,
+  'Indiferente': 3,
+  'Concordo': 4,
+  'Concordo totalmente': 5
+};
+
+// Mapeamento das questões para códigos
+const QUESTION_MAPPING = {
+  // Questionário completo (20+ questões)
+  'O sistema funciona sem falhas.': 'QS1',
+  'Os recursos de acessibilidade do sistema são fáceis de encontrar.': 'QS2',
+  'O sistema é fácil de usar.': 'QS3',
+  'O sistema está disponível para uso em qualquer dia e hora.': 'QS4',
+  'O desempenho do sistema é satisfatório, independentemente da forma de acesso.': 'QS5',
+  'O sistema informa sobre as políticas de privacidade e segurança.': 'QS6',
+  'Acredito que meus dados estão seguros neste sistema.': 'QS7',
+  'É fácil localizar os serviços e as informações no sistema.': 'QS8',
+  'A navegação pelo sistema é intuitiva.': 'QS9',
+  'O sistema oferece instruções úteis de como utilizar os serviços.': 'QS10',
+  'As informações são fáceis de entender.': 'QI1',
+  'As informações são precisas.': 'QI2',
+  'As informações auxiliam na solicitação dos serviços.': 'QI3',
+  'Todas as informações necessárias para a solicitação dos serviços são fornecidas.': 'QI4',
+  'O prazo de entrega dos serviços é informado.': 'QI5',
+  'As taxas cobradas pelos serviços são informadas.': 'QI6',
+  'As informações disponibilizadas estão atualizadas.': 'QI7',
+  'Os serviços oferecem suporte técnico eficiente.': 'QO1',
+  'O atendimento resolve meus problemas.': 'QO2',
+  'Os serviços permitem a conclusão das tarefas no menor tempo possível.': 'QO3',
+  'Consigo obter o que preciso no menor tempo possível.': 'QO4',
+  'Os serviços atendem às minhas expectativas.': 'QO5',
+  'Quando preciso de ajuda, minhas dificuldades são resolvidas.': 'QO6',
+  'Meus dados são automaticamente identificados na solicitação dos serviços.': 'QO7',
+  'Os serviços oferecidos são confiáveis.': 'QO8',
+  'Os serviços permitem interações em tempo real (ex. chatbot, IA).': 'QO9',
+  
+  // Questionário Portal da Transparência (8 questões) - mapeadas para códigos corretos
+  'O Portal é fácil de usar.': 'QS3',
+  'É fácil localizar os dados e as informações no Portal.': 'QS8',
+  'A navegação pelo Portal é intuitiva.': 'QS9',
+  'O Portal funciona sem falhas.': 'QS1',
+  'As informações são fáceis de entender.': 'QI1',
+  'As informações são precisas.': 'QI2',
+  'As informações disponibilizadas estão atualizadas.': 'QI7',
+  'Consigo obter o que preciso no menor tempo possível.': 'QO4'
+};
+
+// Função para converter dados de exemplo para formato processado
+function convertSampleData(rawData) {
+  const convertedData = rawData.data.map(row => {
+    const convertedRow = {};
+    
+    Object.keys(row).forEach(question => {
+      const questionCode = QUESTION_MAPPING[question];
+      if (questionCode) {
+        // Converter resposta Likert para número
+        const numericValue = LIKERT_MAPPING[row[question]] || 3;
+        convertedRow[questionCode] = numericValue;
+      } else if (question.toLowerCase().includes('sexo') || 
+                 question.toLowerCase().includes('idade') || 
+                 question.toLowerCase().includes('escolaridade') || 
+                 question.toLowerCase().includes('funcionário público') ||
+                 question.toLowerCase().includes('funcionario publico') ||
+                 question.toLowerCase().includes('satisfação')) {
+        // Manter dados de perfil
+        convertedRow[question] = row[question];
+      }
+    });
+    
+    return convertedRow;
+  });
+  
+  return {
+    ...rawData,
+    data: convertedData
+  };
+}
+
+const rawCompleteData = {
   type: 'complete',
-  headers: [
-    'O sistema funciona sem falhas.',
-    'Os recursos de acessibilidade do sistema são fáceis de encontrar.',
-    'O sistema é fácil de usar.',
-    'O desempenho do sistema é satisfatório, independentemente da forma de acesso.',
-    'O sistema informa sobre as políticas de privacidade e segurança.',
-    'Acredito que meus dados estão seguros neste sistema.',
-    'É fácil localizar os serviços e as informações no sistema.',
-    'A navegação pelo sistema é intuitiva.',
-    'O sistema oferece instruções úteis de como utilizar os serviços.',
-    'As informações são fáceis de entender.',
-    'As informações são precisas.',
-    'As informações auxiliam na solicitação dos serviços.',
-    'Todas as informações necessárias para a solicitação dos serviços são fornecidas.',
-    'Os serviços oferecem suporte técnico eficiente.',
-    'O atendimento resolve meus problemas.',
-    'Os serviços permitem a conclusão das tarefas no menor tempo possível.',
-    'Consigo obter o que preciso no menor tempo possível.',
-    'Os serviços atendem às minhas expectativas.',
-    'Quando preciso de ajuda, minhas dificuldades são resolvidas.',
-    'Meus dados são automaticamente identificados na solicitação dos serviços.',
-    'Qual o seu nível de satisfação com o Sistema?',
-    'Qual o seu sexo?',
-    'Qual a sua idade?',
-    'Qual seu nível de escolaridade completo?',
-    'Você é funcionário público?'
-  ],
   data: [
     {
       'O sistema funciona sem falhas.': 'Concordo',
@@ -51,6 +106,8 @@ export const sampleCompleteData = {
       'Os serviços atendem às minhas expectativas.': 'Concordo',
       'Quando preciso de ajuda, minhas dificuldades são resolvidas.': 'Não sei',
       'Meus dados são automaticamente identificados na solicitação dos serviços.': 'Não sei',
+      'Os serviços oferecidos são confiáveis.': 'Concordo',
+      'Os serviços permitem interações em tempo real (ex. chatbot, IA).': 'Não sei',
       'Qual o seu nível de satisfação com o Sistema?': 'Indiferente',
       'Qual o seu sexo?': 'Masculino',
       'Qual a sua idade?': '39',
@@ -78,6 +135,8 @@ export const sampleCompleteData = {
       'Os serviços atendem às minhas expectativas.': 'Concordo',
       'Quando preciso de ajuda, minhas dificuldades são resolvidas.': 'Não sei',
       'Meus dados são automaticamente identificados na solicitação dos serviços.': 'Não sei',
+      'Os serviços oferecidos são confiáveis.': 'Concordo',
+      'Os serviços permitem interações em tempo real (ex. chatbot, IA).': 'Discordo',
       'Qual o seu nível de satisfação com o Sistema?': 'Satisfeito',
       'Qual o seu sexo?': 'Masculino',
       'Qual a sua idade?': '36',
@@ -105,54 +164,19 @@ export const sampleCompleteData = {
       'Os serviços atendem às minhas expectativas.': 'Indiferente',
       'Quando preciso de ajuda, minhas dificuldades são resolvidas.': 'Concordo',
       'Meus dados são automaticamente identificados na solicitação dos serviços.': 'Não sei',
+      'Os serviços oferecidos são confiáveis.': 'Concordo',
+      'Os serviços permitem interações em tempo real (ex. chatbot, IA).': 'Discordo',
       'Qual o seu nível de satisfação com o Sistema?': 'Indiferente',
       'Qual o seu sexo?': 'Feminino',
       'Qual a sua idade?': '33',
       'Qual seu nível de escolaridade completo?': 'Ensino Superior',
       'Você é funcionário público?': 'Sim'
     }
-  ],
-  likertQuestions: [
-    'O sistema funciona sem falhas.',
-    'Os recursos de acessibilidade do sistema são fáceis de encontrar.',
-    'O sistema é fácil de usar.',
-    'O desempenho do sistema é satisfatório, independentemente da forma de acesso.',
-    'O sistema informa sobre as políticas de privacidade e segurança.',
-    'Acredito que meus dados estão seguros neste sistema.',
-    'É fácil localizar os serviços e as informações no sistema.',
-    'A navegação pelo sistema é intuitiva.',
-    'O sistema oferece instruções úteis de como utilizar os serviços.',
-    'As informações são fáceis de entender.',
-    'As informações são precisas.',
-    'As informações auxiliam na solicitação dos serviços.',
-    'Todas as informações necessárias para a solicitação dos serviços são fornecidas.',
-    'Os serviços oferecem suporte técnico eficiente.',
-    'O atendimento resolve meus problemas.',
-    'Os serviços permitem a conclusão das tarefas no menor tempo possível.',
-    'Consigo obter o que preciso no menor tempo possível.',
-    'Os serviços atendem às minhas expectativas.',
-    'Quando preciso de ajuda, minhas dificuldades são resolvidas.',
-    'Meus dados são automaticamente identificados na solicitação dos serviços.'
   ]
 };
 
-export const sampleTransparencyData = {
+const rawTransparencyData = {
   type: 'transparency',
-  headers: [
-    'O Portal é fácil de usar.',
-    'É fácil localizar os dados e as informações no Portal.',
-    'A navegação pelo Portal é intuitiva.',
-    'O Portal funciona sem falhas.',
-    'As informações são fáceis de entender.',
-    'As informações são precisas.',
-    'As informações disponibilizadas estão atualizadas.',
-    'Consigo obter o que preciso no menor tempo possível.',
-    'Qual o seu nível de satisfação com o Portal da Transparência do RS?',
-    'Qual o seu sexo?',
-    'Qual a sua idade?',
-    'Qual seu nível de escolaridade completo?',
-    'Você é funcionário público?'
-  ],
   data: [
     {
       'O Portal é fácil de usar.': 'Concordo',
@@ -183,17 +207,26 @@ export const sampleTransparencyData = {
       'Qual a sua idade?': '65',
       'Qual seu nível de escolaridade completo?': 'Pós-Graduação',
       'Você é funcionário público?': 'Sim'
+    },
+    {
+      'O Portal é fácil de usar.': 'Concordo totalmente',
+      'É fácil localizar os dados e as informações no Portal.': 'Concordo totalmente',
+      'A navegação pelo Portal é intuitiva.': 'Concordo totalmente',
+      'O Portal funciona sem falhas.': 'Concordo',
+      'As informações são fáceis de entender.': 'Concordo totalmente',
+      'As informações são precisas.': 'Concordo totalmente',
+      'As informações disponibilizadas estão atualizadas.': 'Concordo',
+      'Consigo obter o que preciso no menor tempo possível.': 'Concordo',
+      'Qual o seu nível de satisfação com o Portal da Transparência do RS?': 'Muito satisfeito',
+      'Qual o seu sexo?': 'Feminino',
+      'Qual a sua idade?': '28',
+      'Qual seu nível de escolaridade completo?': 'Pós-Graduação',
+      'Você é funcionário público?': 'Não'
     }
-  ],
-  likertQuestions: [
-    'O Portal é fácil de usar.',
-    'É fácil localizar os dados e as informações no Portal.',
-    'A navegação pelo Portal é intuitiva.',
-    'O Portal funciona sem falhas.',
-    'As informações são fáceis de entender.',
-    'As informações são precisas.',
-    'As informações disponibilizadas estão atualizadas.',
-    'Consigo obter o que preciso no menor tempo possível.'
   ]
 };
+
+// Converter e exportar dados
+export const sampleCompleteData = convertSampleData(rawCompleteData);
+export const sampleTransparencyData = convertSampleData(rawTransparencyData);
 

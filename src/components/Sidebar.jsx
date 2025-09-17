@@ -1,8 +1,9 @@
-import { Filter, ChevronDown } from 'lucide-react';
+import { Filter, ChevronDown, Users } from 'lucide-react';
 import { useState } from 'react';
 
 export function Sidebar({ filters, onUpdateFilters, onUpdateGoals }) {
   const [isFiltersOpen, setIsFiltersOpen] = useState(true);
+  const [isDemographicFiltersOpen, setIsDemographicFiltersOpen] = useState(true);
 
   const handlePeriodChange = (period) => {
     onUpdateFilters({ period });
@@ -22,6 +23,36 @@ export function Sidebar({ filters, onUpdateFilters, onUpdateGoals }) {
 
   const handleGoalChange = (dimension, value) => {
     onUpdateGoals({ [dimension]: parseFloat(value) });
+  };
+
+  const handleDemographicFilterChange = (filterType, value, checked) => {
+    const currentFilters = filters.demographic || {};
+    const currentValues = currentFilters[filterType] || [];
+    
+    let newValues;
+    if (checked) {
+      newValues = [...currentValues, value];
+    } else {
+      newValues = currentValues.filter(v => v !== value);
+    }
+    
+    onUpdateFilters({
+      demographic: {
+        ...currentFilters,
+        [filterType]: newValues
+      }
+    });
+  };
+
+  const clearDemographicFilters = () => {
+    onUpdateFilters({
+      demographic: {
+        sexo: [],
+        idade: [],
+        escolaridade: [],
+        servidor: []
+      }
+    });
   };
 
   return (
@@ -178,6 +209,141 @@ export function Sidebar({ filters, onUpdateFilters, onUpdateGoals }) {
           </div>
         </div>
       )}
+
+      {/* Filtros Demográficos */}
+      <div className="mt-6 pt-6 border-t border-gray-200">
+        <div 
+          className="flex items-center gap-2 mb-4 cursor-pointer"
+          onClick={() => setIsDemographicFiltersOpen(!isDemographicFiltersOpen)}
+        >
+          <Users className="w-5 h-5 text-purple-600" />
+          <h2 className="text-lg font-semibold text-gray-900">Filtros de Perfil</h2>
+          <ChevronDown 
+            className={`w-4 h-4 text-gray-500 transition-transform ${isDemographicFiltersOpen ? 'rotate-180' : ''}`} 
+          />
+        </div>
+
+        {isDemographicFiltersOpen && (
+          <div className="space-y-4">
+            {/* Botão Limpar Filtros */}
+            <button
+              onClick={clearDemographicFilters}
+              className="w-full text-sm text-purple-600 hover:text-purple-800 underline"
+            >
+              Limpar todos os filtros de perfil
+            </button>
+
+            {/* Filtro por Sexo */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Sexo
+              </label>
+              <div className="space-y-1">
+                {['Masculino', 'Feminino', 'Outro'].map((sexo) => (
+                  <label key={sexo} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={(filters.demographic?.sexo || []).includes(sexo)}
+                      onChange={(e) => handleDemographicFilterChange('sexo', sexo, e.target.checked)}
+                      className="text-purple-600 focus:ring-purple-500 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">{sexo}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Filtro por Idade */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Faixa Etária
+              </label>
+              <div className="space-y-1">
+                {['Até 20 anos', 'De 21 a 23 anos', 'De 24 a 32 anos', 'Acima de 33 anos'].map((idade) => (
+                  <label key={idade} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={(filters.demographic?.idade || []).includes(idade)}
+                      onChange={(e) => handleDemographicFilterChange('idade', idade, e.target.checked)}
+                      className="text-purple-600 focus:ring-purple-500 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">{idade}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Filtro por Escolaridade */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Escolaridade
+              </label>
+              <div className="space-y-1">
+                {[
+                  'Ensino Fundamental',
+                  'Ensino Médio',
+                  'Curso Técnico',
+                  'Ensino Superior',
+                  'Pós-Graduação'
+                ].map((escolaridade) => (
+                  <label key={escolaridade} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={(filters.demographic?.escolaridade || []).includes(escolaridade)}
+                      onChange={(e) => handleDemographicFilterChange('escolaridade', escolaridade, e.target.checked)}
+                      className="text-purple-600 focus:ring-purple-500 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">{escolaridade}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Filtro por Servidor Público */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Servidor Público
+              </label>
+              <div className="space-y-1">
+                {['Sim', 'Não'].map((servidor) => (
+                  <label key={servidor} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={(filters.demographic?.servidor || []).includes(servidor)}
+                      onChange={(e) => handleDemographicFilterChange('servidor', servidor, e.target.checked)}
+                      className="text-purple-600 focus:ring-purple-500 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">{servidor}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Indicador de Filtros Ativos */}
+            {filters.demographic && Object.values(filters.demographic).some(arr => arr && arr.length > 0) && (
+              <div className="mt-4 p-3 bg-purple-50 rounded-lg">
+                <h4 className="text-sm font-medium text-purple-800 mb-2">Filtros Ativos:</h4>
+                <div className="space-y-1">
+                  {Object.entries(filters.demographic).map(([key, values]) => {
+                    if (!values || values.length === 0) return null;
+                    const labels = {
+                      sexo: 'Sexo',
+                      idade: 'Idade',
+                      escolaridade: 'Escolaridade',
+                      servidor: 'Servidor Público'
+                    };
+                    return (
+                      <div key={key} className="text-xs text-purple-700">
+                        <strong>{labels[key]}:</strong> {values.join(', ')}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

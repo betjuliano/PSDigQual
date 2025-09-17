@@ -28,35 +28,30 @@ const QUESTION_MAPPING = {
   'Os serviços oferecidos são confiáveis.': 'QO8',
   'Os serviços permitem interações em tempo real (ex. chatbot, IA).': 'QO9',
   
-  // Questionário transparência (8 questões)
-  'O Portal é fácil de usar.': 'QT1',
-  'É fácil localizar os dados e as informações no Portal.': 'QT2',
-  'A navegação pelo Portal é intuitiva.': 'QT3',
-  'O Portal funciona sem falhas.': 'QT4',
-  'As informações são fáceis de entender.': 'QT5',
-  'As informações são precisas.': 'QT6',
-  'As informações disponibilizadas estão atualizadas.': 'QT7',
-  'Consigo obter o que preciso no menor tempo possível.': 'QT8'
+  // Questionário Portal da Transparência (8 questões) - mapeadas para códigos corretos
+  'O Portal é fácil de usar.': 'QS3',  // Corresponde a QS3 do questionário completo
+  'É fácil localizar os dados e as informações no Portal.': 'QS8',  // Corresponde a QS8
+  'A navegação pelo Portal é intuitiva.': 'QS9',  // Corresponde a QS9
+  'O Portal funciona sem falhas.': 'QS1',  // Corresponde a QS1
+  'As informações são fáceis de entender.': 'QI1',  // Corresponde a QI1
+  'As informações são precisas.': 'QI2',  // Corresponde a QI2
+  'As informações disponibilizadas estão atualizadas.': 'QI7',  // Corresponde a QI7
+  'Consigo obter o que preciso no menor tempo possível.': 'QO4'  // Corresponde a QO4
 };
 
 // Mapeamento das dimensões
 const DIMENSION_MAPPING = {
-  // Qualidade do Sistema
+  // Qualidade do Sistema (QS)
   'QS1': 'QS', 'QS2': 'QS', 'QS3': 'QS', 'QS4': 'QS', 'QS5': 'QS',
   'QS6': 'QS', 'QS7': 'QS', 'QS8': 'QS', 'QS9': 'QS', 'QS10': 'QS',
   
-  // Qualidade da Informação
+  // Qualidade da Informação (QI)
   'QI1': 'QI', 'QI2': 'QI', 'QI3': 'QI', 'QI4': 'QI', 'QI5': 'QI',
   'QI6': 'QI', 'QI7': 'QI',
   
-  // Qualidade da Operação
+  // Qualidade da Operação (QO)
   'QO1': 'QO', 'QO2': 'QO', 'QO3': 'QO', 'QO4': 'QO', 'QO5': 'QO',
-  'QO6': 'QO', 'QO7': 'QO', 'QO8': 'QO', 'QO9': 'QO',
-  
-  // Transparência (mapeadas para dimensões equivalentes)
-  'QT1': 'QS', 'QT2': 'QS', 'QT3': 'QS', 'QT4': 'QS', // Sistema
-  'QT5': 'QI', 'QT6': 'QI', 'QT7': 'QI', // Informação
-  'QT8': 'QO' // Operação
+  'QO6': 'QO', 'QO7': 'QO', 'QO8': 'QO', 'QO9': 'QO'
 };
 
 // Mapeamento de respostas Likert para números
@@ -153,6 +148,9 @@ export function processCSVData(csvText, encoding = 'utf-8') {
   }
 }
 
+// Alias para compatibilidade com FileUpload
+export const parseCSV = processCSVData;
+
 // Função para processar arquivo com diferentes encodings
 export async function processFileWithEncoding(file) {
   try {
@@ -203,7 +201,7 @@ export function calculateQuestionAverages(dataset) {
   // Inicializar contadores
   dataset.data.forEach(row => {
     Object.keys(row).forEach(key => {
-      if (key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO') || key.startsWith('QT')) {
+      if (key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO')) {
         if (!averages[key]) {
           averages[key] = 0;
           counts[key] = 0;
@@ -330,14 +328,28 @@ export function extractProfileData(dataset) {
       profileData.escolaridade[escolaridade] = (profileData.escolaridade[escolaridade] || 0) + 1;
     }
 
-    // Processar funcionário público
-    const funcionarioKey = Object.keys(row).find(key => 
-      key.toLowerCase().includes('funcionário público') || 
-      key.toLowerCase().includes('funcionario publico')
-    );
+    // Processar funcionário público (incluindo variações como servidor público)
+    const funcionarioKey = Object.keys(row).find(key => {
+      const keyLower = key.toLowerCase();
+      return keyLower.includes('funcionário público') || 
+             keyLower.includes('funcionario publico') ||
+             keyLower.includes('servidor público') ||
+             keyLower.includes('servidor publico') ||
+             keyLower.includes('funcionário') ||
+             keyLower.includes('funcionario') ||
+             keyLower.includes('servidor');
+    });
     const funcionarioPublico = row[funcionarioKey];
     if (funcionarioPublico) {
-      profileData.funcionarioPublico[funcionarioPublico] = (profileData.funcionarioPublico[funcionarioPublico] || 0) + 1;
+      // Normalizar as respostas para padronizar funcionário e servidor público
+      let normalizedResponse = funcionarioPublico;
+      if (funcionarioPublico.toLowerCase() === 'sim') {
+        normalizedResponse = 'Funcionário/Servidor Público';
+      } else if (funcionarioPublico.toLowerCase() === 'não' || funcionarioPublico.toLowerCase() === 'nao') {
+        normalizedResponse = 'Não é Funcionário Público';
+      }
+      
+      profileData.funcionarioPublico[normalizedResponse] = (profileData.funcionarioPublico[normalizedResponse] || 0) + 1;
     }
   });
 
@@ -380,14 +392,105 @@ function getDimensionName(dimension) {
 // Função para obter ações específicas por questão
 function getActionsForQuestion(questionCode, dimension) {
   const actions = {
-    // Ações para Qualidade do Sistema
-    'QS1': [
+    // Ações específicas para as 8 questões do Portal da Transparência
+    'QS3': [ // O Portal é fácil de usar
       {
-        title: 'Implementar Monitoramento de Sistema',
-        description: 'Criar sistema de monitoramento em tempo real para detectar e corrigir falhas automaticamente.',
+        title: 'Pesquisa orientada e inteligente',
+        description: 'Implemente uma barra de busca que utilize inteligência artificial para entender a intenção do usuário. Por exemplo, se a pessoa digita "salário do governador", a busca deve direcioná-la diretamente para a página de remuneração de servidores.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Testes de usabilidade com o público',
+        description: 'Realize sessões periódicas de testes (experimentos) com cidadãos de diferentes perfis (idade, familiaridade com tecnologia, etc.). Observe como eles interagem com o portal e use esses dados para refinar a estrutura de navegação.',
+        priority: 'Média'
+      }
+    ],
+    'QS8': [ // É fácil localizar os dados e as informações no Portal
+      {
+        title: 'Categorização clara e padronizada',
+        description: 'Crie um menu principal com categorias lógicas e nomes simples, como "Receitas", "Despesas", "Servidores", "Licitações e Contratos". Dentro de cada categoria, use subcategorias intuitivas.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Mapas de calor e análise de cliques',
+        description: 'Utilize ferramentas de análise de dados para entender quais páginas são mais acessadas e quais links recebem mais cliques. Identifique "pontos de atrito" onde os usuários desistem da navegação.',
+        priority: 'Média'
+      }
+    ],
+    'QS9': [ // A navegação pelo Portal é intuitiva
+      {
+        title: 'Pesquisa orientada e inteligente',
+        description: 'Implemente uma barra de busca que utilize inteligência artificial para entender a intenção do usuário, facilitando a navegação intuitiva.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Testes de usabilidade com o público',
+        description: 'Realize sessões periódicas de testes com cidadãos de diferentes perfis para refinar a estrutura de navegação e torná-la mais intuitiva.',
+        priority: 'Média'
+      }
+    ],
+    'QS1': [ // O Portal funciona sem falhas
+      {
+        title: 'Dashboard de monitoramento em tempo real',
+        description: 'Criar um painel visível para todos os envolvidos mostrando tempo de carregamento, disponibilidade do servidor, taxa de erro e número de usuários ativos em tempo real.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Testes de regressão automatizados',
+        description: 'Criar scripts automatizados para simular o comportamento de usuário real, verificar funcionalidade dos links principais, testar compatibilidade em múltiplos dispositivos e validar integridade dos dados.',
         priority: 'Alta'
       }
     ],
+    'QI1': [ // As informações são fáceis de entender
+      {
+        title: 'Glossário interativo e linguagem simples',
+        description: 'Evite jargões técnicos e termos burocráticos. Crie um glossário interativo onde o usuário pode passar o mouse sobre termos como "Empenho", "Liquidação" e visualizar explicação clara.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Visualização de dados e infográficos',
+        description: 'Apresente dados complexos em formatos visuais, como gráficos de barras, gráficos de pizza e infográficos, tornando a informação mais digerível.',
+        priority: 'Média'
+      }
+    ],
+    'QI2': [ // As informações são precisas
+      {
+        title: 'Processo de conciliação de dados automatizado',
+        description: 'Configure rotinas automatizadas para comparar dados do portal com os sistemas originais. Scripts diários verificam se totais publicados correspondem aos registros dos sistemas financeiros.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Formulário indicativo de erro com rastreamento',
+        description: 'Criar formulário simples com campos "Página com erro", "Qual informação está incorreta?" e "Sugestão de correção", com sistema de protocolo para acompanhamento.',
+        priority: 'Média'
+      }
+    ],
+    'QI7': [ // As informações disponibilizadas estão atualizadas
+      {
+        title: 'Automação da publicação de dados',
+        description: 'Integre o portal de transparência diretamente aos sistemas de gestão do governo para publicação automática dos dados assim que são gerados, eliminando atualização manual.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Exibição da data de atualização',
+        description: 'Em cada relatório, tabela ou conjunto de dados, inclua uma etiqueta clara que mostre a data e a hora da última atualização, gerando confiança no usuário.',
+        priority: 'Média'
+      }
+    ],
+    'QO4': [ // Consigo obter o que preciso no menor tempo possível
+      {
+        title: 'Dashboard de acesso rápido',
+        description: 'Crie uma página inicial com os dados mais acessados (gastos com saúde, salário de servidores, despesas do mês). Dashboard dinâmico que atualiza conforme o uso diário, semanal ou mensal.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Caminhos de navegação guiados',
+        description: 'Para informações complexas, crie um passo a passo visual. Exemplo: "Como encontrar gasto de uma secretaria: Passo 1: Clique em Despesas > Passo 2: Selecione Órgãos > Passo 3: Escolha a secretaria".',
+        priority: 'Média'
+      }
+    ],
+    
+    // Ações genéricas para outras questões
     'QS2': [
       {
         title: 'Melhorar Acessibilidade',
@@ -395,31 +498,6 @@ function getActionsForQuestion(questionCode, dimension) {
         priority: 'Alta'
       }
     ],
-    'QS3': [
-      {
-        title: 'Simplificar Interface',
-        description: 'Redesenhar a interface para torná-la mais intuitiva e fácil de usar.',
-        priority: 'Alta'
-      }
-    ],
-    
-    // Ações para Qualidade da Informação
-    'QI1': [
-      {
-        title: 'Revisar Linguagem',
-        description: 'Simplificar a linguagem utilizada nas informações para torná-las mais claras.',
-        priority: 'Média'
-      }
-    ],
-    'QI2': [
-      {
-        title: 'Validar Informações',
-        description: 'Implementar processo de validação contínua das informações disponibilizadas.',
-        priority: 'Alta'
-      }
-    ],
-    
-    // Ações para Qualidade da Operação
     'QO1': [
       {
         title: 'Melhorar Suporte Técnico',
@@ -443,5 +521,76 @@ function getActionsForQuestion(questionCode, dimension) {
       priority: 'Média'
     }
   ];
+}
+
+export function filterDataByDemographics(dataset, demographicFilters) {
+  if (!dataset || !dataset.data) {
+    return dataset;
+  }
+
+  // Verificar se há filtros ativos
+  const hasActiveFilters = Object.values(demographicFilters).some(filter => filter.length > 0);
+  
+  if (!hasActiveFilters) {
+    return dataset;
+  }
+
+  const filteredData = dataset.data.filter(row => {
+    // Filtro por sexo
+    if (demographicFilters.sexo.length > 0) {
+      const sexoKey = Object.keys(row).find(key => key.toLowerCase().includes('sexo'));
+      const sexo = row[sexoKey];
+      if (!demographicFilters.sexo.includes(sexo)) {
+        return false;
+      }
+    }
+
+    // Filtro por idade
+    if (demographicFilters.idade.length > 0) {
+      const idadeKey = Object.keys(row).find(key => key.toLowerCase().includes('idade'));
+      const idade = parseInt(row[idadeKey]);
+      
+      let matchesAge = false;
+      for (const faixa of demographicFilters.idade) {
+        if (faixa === '18-25' && idade >= 18 && idade <= 25) matchesAge = true;
+        if (faixa === '26-35' && idade >= 26 && idade <= 35) matchesAge = true;
+        if (faixa === '36-45' && idade >= 36 && idade <= 45) matchesAge = true;
+        if (faixa === '46-55' && idade >= 46 && idade <= 55) matchesAge = true;
+        if (faixa === '56+' && idade >= 56) matchesAge = true;
+      }
+      
+      if (!matchesAge) {
+        return false;
+      }
+    }
+
+    // Filtro por escolaridade
+    if (demographicFilters.escolaridade.length > 0) {
+      const escolaridadeKey = Object.keys(row).find(key => key.toLowerCase().includes('escolaridade'));
+      const escolaridade = row[escolaridadeKey];
+      if (!demographicFilters.escolaridade.includes(escolaridade)) {
+        return false;
+      }
+    }
+
+    // Filtro por servidor público
+    if (demographicFilters.servidor.length > 0) {
+      const servidorKey = Object.keys(row).find(key => 
+        key.toLowerCase().includes('servidor') || 
+        key.toLowerCase().includes('público')
+      );
+      const servidor = row[servidorKey];
+      if (!demographicFilters.servidor.includes(servidor)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  return {
+    ...dataset,
+    data: filteredData
+  };
 }
 

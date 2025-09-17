@@ -5,7 +5,8 @@ import {
   calculateDimensionAverages,
   classifyQuestions,
   extractProfileData,
-  getRecommendationsForCriticalQuestions
+  getRecommendationsForCriticalQuestions,
+  filterDataByDemographics
 } from '../lib/dataProcessor';
 import { sampleCompleteData, sampleTransparencyData } from '../data/sampleData';
 
@@ -23,6 +24,12 @@ export function useData() {
       QS: 4.0,
       QO: 4.0,
       QI: 4.0
+    },
+    demographic: {
+      sexo: [],
+      idade: [],
+      escolaridade: [],
+      servidor: []
     }
   });
 
@@ -78,6 +85,25 @@ export function useData() {
       }
     }
 
+    // Aplicar filtros demográficos
+    const hasActiveFilters = Object.values(filters.demographic).some(arr => arr.length > 0);
+    if (hasActiveFilters) {
+      filteredData = {
+        complete: {
+          ...filteredData.complete,
+          data: filterDataByDemographics(filteredData.complete.data, filters.demographic)
+        },
+        transparency: {
+          ...filteredData.transparency,
+          data: filterDataByDemographics(filteredData.transparency.data, filters.demographic)
+        },
+        combined: {
+          ...filteredData.combined,
+          data: filterDataByDemographics(filteredData.combined.data, filters.demographic)
+        }
+      };
+    }
+
     return filteredData;
   }, [data, filters]);
 
@@ -113,19 +139,13 @@ export function useData() {
     };
   }, [processedData, filters.goals]);
 
-  const uploadNewData = async (file) => {
+  const uploadNewData = async (processedData) => {
     try {
       setIsLoading(true);
       
-      const text = await file.text();
-      const newData = processCSVData(text);
-      
-      // Determinar tipo baseado no número de questões Likert
-      const likertQuestions = Object.keys(newData.data[0] || {}).filter(key => 
-        !['Qual o seu sexo?', 'Qual a sua idade?', 'Qual seu nível de escolaridade completo?', 'Você é funcionário público?'].includes(key)
-      );
-      
-      const isTransparency = likertQuestions.length <= 8;
+      // processedData já vem processado do FileUpload
+      const newData = processedData;
+      const isTransparency = newData.type === 'transparency';
       
       setData(prevData => {
         const updatedData = {
@@ -138,7 +158,10 @@ export function useData() {
         
         // Atualizar dados combinados
         updatedData.combined = {
-          data: [...updatedData.complete.data, ...updatedData.transparency.data],
+          data: [
+            ...(updatedData.complete?.data || []), 
+            ...(updatedData.transparency?.data || [])
+          ],
           type: 'combined'
         };
         
@@ -147,7 +170,7 @@ export function useData() {
       
       return { success: true, type: isTransparency ? 'transparency' : 'complete' };
     } catch (error) {
-      console.error('Erro ao processar arquivo:', error);
+      console.error('Erro ao processar dados:', error);
       return { success: false, error: error.message };
     } finally {
       setIsLoading(false);
@@ -166,7 +189,13 @@ export function useData() {
     setFilters({
       period: 'all',
       questionnaire: 'all',
-      goals: { QS: 4.0, QO: 4.0, QI: 4.0 }
+      goals: { QS: 4.0, QO: 4.0, QI: 4.0 },
+      demographic: {
+        sexo: [],
+        idade: [],
+        escolaridade: [],
+        servidor: []
+      }
     });
   };
 

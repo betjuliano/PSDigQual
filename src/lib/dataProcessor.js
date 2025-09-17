@@ -67,6 +67,8 @@ const LIKERT_MAPPING = {
 // Função para detectar encoding e processar CSV
 export function processCSVData(csvText, encoding = 'utf-8') {
   try {
+    console.log('🔍 Iniciando processamento do CSV...');
+    
     // Se o texto contém caracteres estranhos, pode ser latin-1
     if (csvText.includes('�') || csvText.includes('Ã')) {
       console.log('Detectado possível encoding latin-1, tentando reprocessar...');
@@ -93,8 +95,29 @@ export function processCSVData(csvText, encoding = 'utf-8') {
       throw new Error('Arquivo CSV deve ter pelo menos 2 linhas (cabeçalho + dados)');
     }
 
+    console.log(`📄 Total de linhas encontradas: ${lines.length}`);
+
     const headers = lines[0].split(';').map(h => h.trim());
+    console.log(`📋 Cabeçalhos detectados: ${headers.length}`);
+    
+    // VALIDAÇÃO RIGOROSA DOS CABEÇALHOS
+    const validHeaders = headers.filter(header => header && header.length > 0);
+    if (validHeaders.length === 0) {
+      throw new Error('Nenhum cabeçalho válido encontrado');
+    }
+    
+    console.log(`✅ Cabeçalhos válidos: ${validHeaders.length}/${headers.length}`);
+    
+    // Detectar questões válidas
+    const questionHeaders = headers.filter(header => {
+      const questionCode = QUESTION_MAPPING[header];
+      return questionCode || (header && header.includes('?'));
+    });
+    
+    console.log(`❓ Questões detectadas: ${questionHeaders.length}`);
+    
     const data = [];
+    const invalidRows = [];
 
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -104,6 +127,9 @@ export function processCSVData(csvText, encoding = 'utf-8') {
       if (values.length !== headers.length) continue;
 
       const row = {};
+      let validResponses = 0;
+      let totalQuestions = 0;
+      
       headers.forEach((header, index) => {
         const value = values[index];
         
@@ -118,19 +144,58 @@ export function processCSVData(csvText, encoding = 'utf-8') {
         // Verificar se é questão Likert
         else if (QUESTION_MAPPING[header]) {
           const questionCode = QUESTION_MAPPING[header];
-          const numericValue = LIKERT_MAPPING[value] || 3;
-          row[questionCode] = numericValue;
+          totalQuestions++;
+          
+          if (LIKERT_MAPPING[value]) {
+            row[questionCode] = LIKERT_MAPPING[value];
+            validResponses++;
+          } else if (value && value !== '') {
+            row[questionCode] = value; // Manter valor original se não for Likert
+          } else {
+            row[questionCode] = null; // Valor vazio
+          }
         }
       });
 
-      // Só adicionar se tiver pelo menos uma questão Likert
+      // VALIDAÇÃO DA LINHA
+      const responseRate = totalQuestions > 0 ? (validResponses / totalQuestions) : 0;
+      
+      // Só adicionar se tiver pelo menos uma questão Likert e taxa de resposta >= 30%
       const hasLikertQuestions = Object.keys(row).some(key => 
         key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO') || key.startsWith('QT')
       );
       
-      if (hasLikertQuestions) {
+      if (hasLikertQuestions && responseRate >= 0.3) {
         data.push(row);
+      } else {
+        invalidRows.push({
+          linha: i + 1,
+          respostasValidas: validResponses,
+          totalQuestoes: totalQuestions,
+          taxa: responseRate
+        });
       }
+    }
+
+    console.log(`📊 Processamento concluído:`);
+    console.log(`  ✅ Linhas válidas: ${data.length}`);
+    console.log(`  ❌ Linhas inválidas: ${invalidRows.length}`);
+    
+    if (data.length === 0) {
+      throw new Error('Nenhuma linha de dados válida encontrada');
+    }
+    
+    // VALIDAÇÃO FINAL DOS DADOS
+    const sampleRow = data[0];
+    const questionCodes = Object.keys(sampleRow).filter(key => 
+      key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO')
+    );
+    
+    console.log(`🎯 Códigos de questões identificados: ${questionCodes.length}`);
+    console.log(`📝 Códigos: ${questionCodes.join(', ')}`);
+    
+    if (questionCodes.length === 0) {
+      console.warn('⚠️ Nenhum código de questão identificado nos dados');
     }
 
     // Determinar tipo baseado nas questões presentes
@@ -141,9 +206,28 @@ export function processCSVData(csvText, encoding = 'utf-8') {
     const type = hasTransparencyQuestions ? 'transparency' : 'complete';
 
     console.log(`Processados ${data.length} registros do tipo ${type}`);
-    return { data, type };
+    
+    const result = {
+      data,
+      type,
+      headers,
+      totalRecords: data.length,
+      invalidRows: invalidRows.length,
+      questionCodes,
+      validationSummary: {
+        totalLines: lines.length - 1,
+        validLines: data.length,
+        invalidLines: invalidRows.length,
+        questionColumns: questionCodes.length,
+        headerColumns: headers.length
+      }
+    };
+    
+    console.log('✅ Dados processados com sucesso:', result.validationSummary);
+    
+    return result;
   } catch (error) {
-    console.error('Erro ao processar CSV:', error);
+    console.error('❌ Erro ao processar CSV:', error);
     throw error;
   }
 }

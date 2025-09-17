@@ -38,6 +38,8 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
 
   // Função para carregar arquivos base do projeto
   const handleLoadBaseFile = async (fileName) => {
+    console.log(`🔄 Iniciando carregamento de: ${fileName}`);
+    
     setIsProcessing(true);
     setFileName(fileName);
     setUploadStatus(null);
@@ -50,7 +52,7 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
       // Carregar arquivo da pasta public
       const response = await fetch(`/${fileName}`);
       if (!response.ok) {
-        throw new Error('Arquivo não encontrado');
+        throw new Error(`Arquivo ${fileName} não encontrado (Status: ${response.status})`);
       }
       
       setProcessingDetails({
@@ -59,7 +61,10 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
       });
 
       const text = await response.text();
+      console.log(`📄 Arquivo carregado, tamanho: ${text.length} caracteres`);
+      
       const result = parseCSV(text);
+      console.log(`📊 Dados processados: ${result.data.length} registros`);
       
       setProcessingDetails({
         step: 'Finalizando...',
@@ -69,10 +74,88 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
       // Simular um pequeno delay para mostrar o progresso
       await new Promise(resolve => setTimeout(resolve, 500));
 
+      // DETECÇÃO AUTOMÁTICA ROBUSTA DO TIPO DE QUESTIONÁRIO
+      const headers = result.headers || [];
+      const questionColumns = headers.filter(header => 
+        header && typeof header === 'string' && header.trim().length > 0
+      );
+      
+      console.log(`🔍 Detectando tipo de questionário...`);
+      console.log(`📋 Total de colunas: ${headers.length}`);
+      console.log(`❓ Colunas de questões detectadas: ${questionColumns.length}`);
+      
+      // Detecção baseada em múltiplos critérios
+      let isTransparency = false;
+      
+      // Critério 1: Nome do arquivo
+      if (fileName.includes('base8') || fileName.includes('transparency')) {
+        isTransparency = true;
+        console.log(`✅ Tipo detectado por nome do arquivo: Transparência`);
+      }
+      
+      // Critério 2: Número de colunas de questões (mais robusto)
+      else if (questionColumns.length <= 12) { // 8 questões + 4 demográficas
+        isTransparency = true;
+        console.log(`✅ Tipo detectado por número de colunas: Transparência (${questionColumns.length} colunas)`);
+      }
+      
+      // Critério 3: Verificar se contém questões específicas do questionário completo
+      else {
+        const hasCompleteQuestions = headers.some(header => 
+          header && (
+            header.includes('recursos de acessibilidade') ||
+            header.includes('políticas de privacidade') ||
+            header.includes('suporte técnico')
+          )
+        );
+        
+        if (hasCompleteQuestions) {
+          isTransparency = false;
+          console.log(`✅ Tipo detectado por questões específicas: Completo`);
+        } else {
+          isTransparency = questionColumns.length <= 12;
+          console.log(`✅ Tipo detectado por fallback: ${isTransparency ? 'Transparência' : 'Completo'}`);
+        }
+      }
+      
+      result.type = isTransparency ? 'transparency' : 'complete';
+      
+      console.log(`🎯 Tipo final determinado: ${result.type}`);
+      console.log(`📈 Resumo dos dados:`, {
+        arquivo: fileName,
+        tipo: result.type,
+        registros: result.data.length,
+        colunas: headers.length
+      });
+
       // Determinar tipo de questionário
-      const questionarioType = fileName.includes('base8') ? 
+      const questionarioType = result.type === 'transparency' ? 
         'Portal da Transparência (8 questões)' : 
         'Questionário Completo (20+ questões)';
+
+      // LOGS DETALHADOS PARA DEBUG
+      console.log('📊 RESUMO FINAL DO CARREGAMENTO:');
+      console.log('================================');
+      console.log(`📁 Arquivo: ${fileName}`);
+      console.log(`🎯 Tipo: ${result.type}`);
+      console.log(`📈 Registros válidos: ${result.data.length}`);
+      console.log(`❌ Registros inválidos: ${result.invalidRows || 0}`);
+      console.log(`📋 Total de colunas: ${headers.length}`);
+      console.log(`❓ Códigos de questões: ${result.questionCodes?.length || 0}`);
+      
+      if (result.validationSummary) {
+        console.log('📊 Resumo da validação:', result.validationSummary);
+      }
+      
+      // Verificar se há questões mapeadas
+      const mappedQuestions = result.questionCodes || [];
+      if (mappedQuestions.length === 0) {
+        console.warn('⚠️ ATENÇÃO: Nenhuma questão foi mapeada corretamente!');
+      } else {
+        console.log(`✅ Questões mapeadas: ${mappedQuestions.join(', ')}`);
+      }
+      
+      console.log('================================');
 
       setUploadStatus({
         type: 'success',
@@ -81,20 +164,28 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
           records: result.data.length,
           type: questionarioType,
           encoding: 'UTF-8',
-          source: 'Arquivo base do projeto'
+          source: 'Arquivo base do projeto',
+          columns: headers.length,
+          questionCodes: mappedQuestions.length,
+          invalidRows: result.invalidRows || 0,
+          validationRate: result.validationSummary ? 
+            `${Math.round((result.validationSummary.validLines / result.validationSummary.totalLines) * 100)}%` : 
+            'N/A'
         }
       });
 
       // Passar dados processados para o componente pai
+      console.log('🚀 Enviando dados para o componente pai...');
       onDataProcessed(result);
 
     } catch (error) {
-      console.error('Erro ao carregar arquivo base:', error);
+      console.error('❌ Erro ao carregar arquivo base:', error);
       setUploadStatus({
         type: 'error',
         message: `Erro ao carregar arquivo base: ${error.message}`,
         details: {
-          suggestion: 'Verifique se o arquivo existe na pasta public do projeto'
+          suggestion: 'Verifique se o arquivo existe na pasta public do projeto',
+          fileName: fileName
         }
       });
     } finally {

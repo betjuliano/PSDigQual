@@ -143,35 +143,55 @@ export function useData() {
     try {
       setIsLoading(true);
       
+      // LIMPEZA COMPLETA: Resetar todos os dados antes de carregar novos
+      console.log('🔄 Iniciando limpeza completa de dados...');
+      
+      // Resetar filtros para estado inicial
+      setFilters({
+        demographic: {
+          sexo: [],
+          idade: [],
+          escolaridade: [],
+          funcionarioPublico: []
+        },
+        questionType: 'all',
+        goals: {
+          QS: 4.0,
+          QI: 4.0,
+          QO: 4.0
+        }
+      });
+
       // processedData já vem processado do FileUpload
       const newData = processedData;
       const isTransparency = newData.type === 'transparency';
       
-      setData(prevData => {
-        const updatedData = {
-          ...prevData,
-          [isTransparency ? 'transparency' : 'complete']: {
-            ...newData,
-            type: isTransparency ? 'transparency' : 'complete'
-          }
-        };
-        
-        // Atualizar dados combinados
-        updatedData.combined = {
-          data: [
-            ...(updatedData.complete?.data || []), 
-            ...(updatedData.transparency?.data || [])
-          ],
-          type: 'combined'
-        };
-        
-        return updatedData;
-      });
+      console.log(`📊 Carregando dados do tipo: ${isTransparency ? 'Transparência (8 questões)' : 'Completo (20 questões)'}`);      console.log(`📈 Total de registros: ${newData.data.length}`);
       
-      return { success: true, type: isTransparency ? 'transparency' : 'complete' };
+      // SUBSTITUIÇÃO COMPLETA: Não manter dados anteriores
+      const cleanData = {
+        complete: isTransparency ? { data: [], type: 'complete' } : newData,
+        transparency: isTransparency ? newData : { data: [], type: 'transparency' },
+        combined: newData // Sempre usar os dados recém-carregados
+      };
+      
+      setData(cleanData);
+      
+      console.log('✅ Dados carregados com sucesso!');
+      console.log('📋 Estrutura final:', {
+        complete: cleanData.complete.data.length,
+        transparency: cleanData.transparency.data.length,
+        combined: cleanData.combined.data.length,
+        type: cleanData.combined.type
+      });
+
+      return { success: true, dataType: newData.type, recordCount: newData.data.length };
     } catch (error) {
-      console.error('Erro ao processar dados:', error);
-      return { success: false, error: error.message };
+      console.error('❌ Erro ao processar dados:', error);
+      return { 
+        success: false, 
+        error: error.message 
+      };
     } finally {
       setIsLoading(false);
     }

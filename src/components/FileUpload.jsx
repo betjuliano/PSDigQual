@@ -47,8 +47,8 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
     });
 
     try {
-      // Carregar arquivo da pasta public
-      const response = await fetch(`/${fileName}`);
+      // Carregar arquivo da pasta src/data
+      const response = await fetch(`/src/data/${fileName}`);
       if (!response.ok) {
         throw new Error('Arquivo não encontrado');
       }
@@ -94,7 +94,7 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
         type: 'error',
         message: `Erro ao carregar arquivo base: ${error.message}`,
         details: {
-          suggestion: 'Verifique se o arquivo existe na pasta public do projeto'
+          suggestion: 'Verifique se o arquivo existe na pasta src/data do projeto'
         }
       });
     } finally {

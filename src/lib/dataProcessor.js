@@ -1,7 +1,66 @@
-// Utilitário para processar dados dos questionários PSDigQual
+// Mapeamento das questões para códigos
+const QUESTION_MAPPING = {
+  // Questionário completo (20+ questões)
+  'O sistema funciona sem falhas.': 'QS1',
+  'Os recursos de acessibilidade do sistema são fáceis de encontrar.': 'QS2',
+  'O sistema é fácil de usar.': 'QS3',
+  'O sistema está disponível para uso em qualquer dia e hora.': 'QS4',
+  'O desempenho do sistema é satisfatório, independentemente da forma de acesso.': 'QS5',
+  'O sistema informa sobre as políticas de privacidade e segurança.': 'QS6',
+  'Acredito que meus dados estão seguros neste sistema.': 'QS7',
+  'É fácil localizar os serviços e as informações no sistema.': 'QS8',
+  'A navegação pelo sistema é intuitiva.': 'QS9',
+  'O sistema oferece instruções úteis de como utilizar os serviços.': 'QS10',
+  'As informações são fáceis de entender.': 'QI1',
+  'As informações são precisas.': 'QI2',
+  'As informações auxiliam na solicitação dos serviços.': 'QI3',
+  'Todas as informações necessárias para a solicitação dos serviços são fornecidas.': 'QI4',
+  'O prazo de entrega dos serviços é informado.': 'QI5',
+  'As taxas cobradas pelos serviços são informadas.': 'QI6',
+  'As informações disponibilizadas estão atualizadas.': 'QI7',
+  'Os serviços oferecem suporte técnico eficiente.': 'QO1',
+  'O atendimento resolve meus problemas.': 'QO2',
+  'Os serviços permitem a conclusão das tarefas no menor tempo possível.': 'QO3',
+  'Consigo obter o que preciso no menor tempo possível.': 'QO4',
+  'Os serviços atendem às minhas expectativas.': 'QO5',
+  'Quando preciso de ajuda, minhas dificuldades são resolvidas.': 'QO6',
+  'Meus dados são automaticamente identificados na solicitação dos serviços.': 'QO7',
+  'Os serviços oferecidos são confiáveis.': 'QO8',
+  'Os serviços permitem interações em tempo real (ex. chatbot, IA).': 'QO9',
+  
+  // Questionário transparência (8 questões)
+  'O Portal é fácil de usar.': 'QT1',
+  'É fácil localizar os dados e as informações no Portal.': 'QT2',
+  'A navegação pelo Portal é intuitiva.': 'QT3',
+  'O Portal funciona sem falhas.': 'QT4',
+  'As informações são fáceis de entender.': 'QT5',
+  'As informações são precisas.': 'QT6',
+  'As informações disponibilizadas estão atualizadas.': 'QT7',
+  'Consigo obter o que preciso no menor tempo possível.': 'QT8'
+};
 
-// Mapeamento das respostas Likert para valores numéricos
-const likertMapping = {
+// Mapeamento das dimensões
+const DIMENSION_MAPPING = {
+  // Qualidade do Sistema
+  'QS1': 'QS', 'QS2': 'QS', 'QS3': 'QS', 'QS4': 'QS', 'QS5': 'QS',
+  'QS6': 'QS', 'QS7': 'QS', 'QS8': 'QS', 'QS9': 'QS', 'QS10': 'QS',
+  
+  // Qualidade da Informação
+  'QI1': 'QI', 'QI2': 'QI', 'QI3': 'QI', 'QI4': 'QI', 'QI5': 'QI',
+  'QI6': 'QI', 'QI7': 'QI',
+  
+  // Qualidade da Operação
+  'QO1': 'QO', 'QO2': 'QO', 'QO3': 'QO', 'QO4': 'QO', 'QO5': 'QO',
+  'QO6': 'QO', 'QO7': 'QO', 'QO8': 'QO', 'QO9': 'QO',
+  
+  // Transparência (mapeadas para dimensões equivalentes)
+  'QT1': 'QS', 'QT2': 'QS', 'QT3': 'QS', 'QT4': 'QS', // Sistema
+  'QT5': 'QI', 'QT6': 'QI', 'QT7': 'QI', // Informação
+  'QT8': 'QO' // Operação
+};
+
+// Mapeamento de respostas Likert para números
+const LIKERT_MAPPING = {
   'Discordo totalmente': 1,
   'Discordo': 2,
   'Não sei': 3,
@@ -10,202 +69,154 @@ const likertMapping = {
   'Concordo totalmente': 5
 };
 
-// Mapeamento das questões para dimensões (questionário completo - 20 questões)
-const questionDimensions = {
-  'QS1': 'QS', // O sistema funciona sem falhas
-  'QS2': 'QS', // Os recursos de acessibilidade do sistema são fáceis de encontrar
-  'QS3': 'QS', // O sistema é fácil de usar
-  'QS5': 'QS', // O desempenho do sistema é satisfatório
-  'QS6': 'QS', // O sistema informa sobre as políticas de privacidade
-  'QS7': 'QS', // Acredito que meus dados estão seguros
-  'QS8': 'QS', // É fácil localizar os serviços e as informações
-  'QS9': 'QS', // A navegação pelo sistema é intuitiva
-  'QS10': 'QS', // O sistema oferece instruções úteis
-  'QI1': 'QI', // As informações são fáceis de entender
-  'QI2': 'QI', // As informações são precisas
-  'QI3': 'QI', // As informações auxiliam na solicitação
-  'QI4': 'QI', // Todas as informações necessárias são fornecidas
-  'QO1': 'QO', // Os serviços oferecem suporte técnico eficiente
-  'QO2': 'QO', // O atendimento resolve meus problemas
-  'QO3': 'QO', // Os serviços permitem conclusão no menor tempo
-  'QO4': 'QO', // Consigo obter o que preciso no menor tempo
-  'QO5': 'QO', // Os serviços atendem às minhas expectativas
-  'QO6': 'QO', // Quando preciso de ajuda, dificuldades são resolvidas
-  'QO7': 'QO'  // Meus dados são automaticamente identificados
-};
+// Função para detectar encoding e processar CSV
+export function processCSVData(csvText, encoding = 'utf-8') {
+  try {
+    // Se o texto contém caracteres estranhos, pode ser latin-1
+    if (csvText.includes('�') || csvText.includes('Ã')) {
+      console.log('Detectado possível encoding latin-1, tentando reprocessar...');
+      // Em um ambiente real, aqui faria a conversão de encoding
+      // Por enquanto, vamos limpar os caracteres problemáticos
+      csvText = csvText
+        .replace(/Ã¡/g, 'á')
+        .replace(/Ã©/g, 'é')
+        .replace(/Ã­/g, 'í')
+        .replace(/Ã³/g, 'ó')
+        .replace(/Ãº/g, 'ú')
+        .replace(/Ã§/g, 'ç')
+        .replace(/Ã /g, 'à')
+        .replace(/Ã¢/g, 'â')
+        .replace(/Ã£/g, 'ã')
+        .replace(/Ãª/g, 'ê')
+        .replace(/Ã´/g, 'ô')
+        .replace(/Ã¨/g, 'è')
+        .replace(/�/g, '');
+    }
 
-// Mapeamento para questionário Portal da Transparência (8 questões)
-const transparencyQuestionMapping = {
-  'O Portal é fácil de usar.': 'QS3',
-  'É fácil localizar os dados e as informações no Portal.': 'QS8', 
-  'A navegação pelo Portal é intuitiva.': 'QS9',
-  'O Portal funciona sem falhas.': 'QS1',
-  'As informações são fáceis de entender.': 'QI1',
-  'As informações são precisas.': 'QI2',
-  'As informações disponibilizadas estão atualizadas.': 'QI7',
-  'Consigo obter o que preciso no menor tempo possível.': 'QO4'
-};
+    const lines = csvText.trim().split('\n');
+    if (lines.length < 2) {
+      throw new Error('Arquivo CSV deve ter pelo menos 2 linhas (cabeçalho + dados)');
+    }
 
-// Questões completas com seus códigos
-const completeQuestions = {
-  'QS1': 'O sistema funciona sem falhas.',
-  'QS2': 'Os recursos de acessibilidade do sistema são fáceis de encontrar.',
-  'QS3': 'O sistema é fácil de usar.',
-  'QS5': 'O desempenho do sistema é satisfatório, independentemente da forma de acesso.',
-  'QS6': 'O sistema informa sobre as políticas de privacidade e segurança.',
-  'QS7': 'Acredito que meus dados estão seguros neste sistema.',
-  'QS8': 'É fácil localizar os serviços e as informações no sistema.',
-  'QS9': 'A navegação pelo sistema é intuitiva.',
-  'QS10': 'O sistema oferece instruções úteis de como utilizar os serviços.',
-  'QI1': 'As informações são fáceis de entender.',
-  'QI2': 'As informações são precisas.',
-  'QI3': 'As informações auxiliam na solicitação dos serviços.',
-  'QI4': 'Todas as informações necessárias para a solicitação dos serviços são fornecidas.',
-  'QO1': 'Os serviços oferecem suporte técnico eficiente.',
-  'QO2': 'O atendimento resolve meus problemas.',
-  'QO3': 'Os serviços permitem a conclusão das tarefas no menor tempo possível.',
-  'QO4': 'Consigo obter o que preciso no menor tempo possível.',
-  'QO5': 'Os serviços atendem às minhas expectativas.',
-  'QO6': 'Quando preciso de ajuda, minhas dificuldades são resolvidas.',
-  'QO7': 'Meus dados são automaticamente identificados na solicitação dos serviços.'
-};
+    const headers = lines[0].split(';').map(h => h.trim());
+    const data = [];
 
-// Função para converter resposta Likert em número
-export function convertLikertToNumber(response) {
-  if (typeof response === 'number') return response;
-  const cleaned = response?.toString().trim();
-  return likertMapping[cleaned] || 3; // Default para "Não sei"
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue; // Pular linhas vazias
+      
+      const values = line.split(';').map(v => v.trim());
+      if (values.length !== headers.length) continue;
+
+      const row = {};
+      headers.forEach((header, index) => {
+        const value = values[index];
+        
+        // Verificar se é questão de perfil
+        if (header.toLowerCase().includes('sexo') || 
+            header.toLowerCase().includes('idade') || 
+            header.toLowerCase().includes('escolaridade') || 
+            header.toLowerCase().includes('funcionário público') ||
+            header.toLowerCase().includes('funcionario publico')) {
+          row[header] = value;
+        }
+        // Verificar se é questão Likert
+        else if (QUESTION_MAPPING[header]) {
+          const questionCode = QUESTION_MAPPING[header];
+          const numericValue = LIKERT_MAPPING[value] || 3;
+          row[questionCode] = numericValue;
+        }
+      });
+
+      // Só adicionar se tiver pelo menos uma questão Likert
+      const hasLikertQuestions = Object.keys(row).some(key => 
+        key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO') || key.startsWith('QT')
+      );
+      
+      if (hasLikertQuestions) {
+        data.push(row);
+      }
+    }
+
+    // Determinar tipo baseado nas questões presentes
+    const hasTransparencyQuestions = data.some(row => 
+      Object.keys(row).some(key => key.startsWith('QT'))
+    );
+    
+    const type = hasTransparencyQuestions ? 'transparency' : 'complete';
+
+    console.log(`Processados ${data.length} registros do tipo ${type}`);
+    return { data, type };
+  } catch (error) {
+    console.error('Erro ao processar CSV:', error);
+    throw error;
+  }
 }
 
-// Função para processar CSV e identificar tipo de questionário
-export function processCSVData(csvText) {
-  const lines = csvText.split('\n').filter(line => line.trim());
-  if (lines.length < 2) return null;
-
-  const headers = lines[0].split(';').map(h => h.trim());
-  const data = [];
-
-  // Identificar tipo de questionário baseado no número de questões Likert
-  const likertQuestions = headers.filter(h => 
-    !h.includes('sexo') && 
-    !h.includes('idade') && 
-    !h.includes('escolaridade') && 
-    !h.includes('funcionário') &&
-    !h.includes('satisfação') &&
-    !h.includes('comentários')
-  );
-
-  const questionnaireType = likertQuestions.length <= 8 ? 'transparency' : 'complete';
-
-  // Processar cada linha de dados
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(';');
-    if (values.length !== headers.length) continue;
-
-    const row = {};
-    headers.forEach((header, index) => {
-      row[header] = values[index]?.trim();
-    });
-
-    // Filtrar linhas vazias ou incompletas
-    const hasValidData = Object.values(row).some(value => value && value !== '');
-    if (hasValidData) {
-      data.push(row);
+// Função para processar arquivo com diferentes encodings
+export async function processFileWithEncoding(file) {
+  const encodings = ['utf-8', 'latin-1', 'iso-8859-1'];
+  
+  for (const encoding of encodings) {
+    try {
+      const text = await readFileAsText(file, encoding);
+      const result = processCSVData(text, encoding);
+      if (result.data.length > 0) {
+        console.log(`Sucesso com encoding: ${encoding}`);
+        return result;
+      }
+    } catch (error) {
+      console.log(`Falha com encoding ${encoding}:`, error.message);
     }
   }
+  
+  throw new Error('Não foi possível processar o arquivo com nenhum encoding suportado');
+}
 
-  return {
-    type: questionnaireType,
-    headers,
-    data,
-    likertQuestions
-  };
+// Função auxiliar para ler arquivo como texto
+function readFileAsText(file, encoding = 'utf-8') {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = (e) => reject(new Error('Erro ao ler arquivo'));
+    
+    if (encoding === 'utf-8') {
+      reader.readAsText(file, 'UTF-8');
+    } else {
+      reader.readAsText(file, 'ISO-8859-1');
+    }
+  });
 }
 
 // Função para calcular médias por questão
-export function calculateQuestionAverages(processedData) {
-  if (!processedData || !processedData.data.length) return {};
-
-  const { data, type } = processedData;
-  const averages = {};
-
-  // Determinar questões baseado no tipo
-  let questionsToProcess = [];
-  
-  if (type === 'transparency') {
-    questionsToProcess = [
-      'O Portal é fácil de usar.',
-      'É fácil localizar os dados e as informações no Portal.',
-      'A navegação pelo Portal é intuitiva.',
-      'O Portal funciona sem falhas.',
-      'As informações são fáceis de entender.',
-      'As informações são precisas.',
-      'As informações disponibilizadas estão atualizadas.',
-      'Consigo obter o que preciso no menor tempo possível.'
-    ];
-  } else {
-    questionsToProcess = [
-      'O sistema funciona sem falhas.',
-      'Os recursos de acessibilidade do sistema são fáceis de encontrar.',
-      'O sistema é fácil de usar.',
-      'O desempenho do sistema é satisfatório, independentemente da forma de acesso.',
-      'O sistema informa sobre as políticas de privacidade e segurança.',
-      'Acredito que meus dados estão seguros neste sistema.',
-      'É fácil localizar os serviços e as informações no sistema.',
-      'A navegação pelo sistema é intuitiva.',
-      'O sistema oferece instruções úteis de como utilizar os serviços.',
-      'As informações são fáceis de entender.',
-      'As informações são precisas.',
-      'As informações auxiliam na solicitação dos serviços.',
-      'Todas as informações necessárias para a solicitação dos serviços são fornecidas.',
-      'Os serviços oferecem suporte técnico eficiente.',
-      'O atendimento resolve meus problemas.',
-      'Os serviços permitem a conclusão das tarefas no menor tempo possível.',
-      'Consigo obter o que preciso no menor tempo possível.',
-      'Os serviços atendem às minhas expectativas.',
-      'Quando preciso de ajuda, minhas dificuldades são resolvidas.',
-      'Meus dados são automaticamente identificados na solicitação dos serviços.'
-    ];
+export function calculateQuestionAverages(dataset) {
+  if (!dataset || !dataset.data || dataset.data.length === 0) {
+    return {};
   }
 
-  questionsToProcess.forEach((question, index) => {
-    const values = data
-      .map(row => convertLikertToNumber(row[question]))
-      .filter(val => val >= 1 && val <= 5);
+  const averages = {};
+  const counts = {};
 
-    if (values.length > 0) {
-      const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
-      
-      // Mapear questão para código padrão
-      let questionCode;
-      let dimension;
-      
-      if (type === 'transparency') {
-        const mapping = {
-          'O Portal é fácil de usar.': { code: 'QS3', dimension: 'QS' },
-          'É fácil localizar os dados e as informações no Portal.': { code: 'QS8', dimension: 'QS' },
-          'A navegação pelo Portal é intuitiva.': { code: 'QS9', dimension: 'QS' },
-          'O Portal funciona sem falhas.': { code: 'QS1', dimension: 'QS' },
-          'As informações são fáceis de entender.': { code: 'QI1', dimension: 'QI' },
-          'As informações são precisas.': { code: 'QI2', dimension: 'QI' },
-          'As informações disponibilizadas estão atualizadas.': { code: 'QI7', dimension: 'QI' },
-          'Consigo obter o que preciso no menor tempo possível.': { code: 'QO4', dimension: 'QO' }
-        };
-        questionCode = mapping[question]?.code || `T${index + 1}`;
-        dimension = mapping[question]?.dimension || 'QS';
-      } else {
-        const codes = ['QS1', 'QS2', 'QS3', 'QS5', 'QS6', 'QS7', 'QS8', 'QS9', 'QS10', 
-                      'QI1', 'QI2', 'QI3', 'QI4', 'QO1', 'QO2', 'QO3', 'QO4', 'QO5', 'QO6', 'QO7'];
-        questionCode = codes[index] || `Q${index + 1}`;
-        dimension = questionCode.substring(0, 2);
+  // Inicializar contadores
+  dataset.data.forEach(row => {
+    Object.keys(row).forEach(key => {
+      if (key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO') || key.startsWith('QT')) {
+        if (!averages[key]) {
+          averages[key] = 0;
+          counts[key] = 0;
+        }
+        if (typeof row[key] === 'number' && !isNaN(row[key])) {
+          averages[key] += row[key];
+          counts[key]++;
+        }
       }
-      
-      averages[questionCode] = {
-        average: Number(avg.toFixed(2)),
-        question: completeQuestions[questionCode] || question,
-        dimension: dimension,
-        responseCount: values.length
-      };
+    });
+  });
+
+  // Calcular médias
+  Object.keys(averages).forEach(key => {
+    if (counts[key] > 0) {
+      averages[key] = averages[key] / counts[key];
     }
   });
 
@@ -216,50 +227,71 @@ export function calculateQuestionAverages(processedData) {
 export function calculateDimensionAverages(questionAverages) {
   const dimensions = { QS: [], QO: [], QI: [] };
 
-  Object.entries(questionAverages).forEach(([code, data]) => {
-    if (dimensions[data.dimension]) {
-      dimensions[data.dimension].push(data.average);
+  Object.keys(questionAverages).forEach(questionCode => {
+    const dimension = DIMENSION_MAPPING[questionCode];
+    if (dimension && dimensions[dimension]) {
+      dimensions[dimension].push(questionAverages[questionCode]);
     }
   });
 
   const dimensionAverages = {};
-  Object.entries(dimensions).forEach(([dim, values]) => {
-    if (values.length > 0) {
-      dimensionAverages[dim] = Number((values.reduce((sum, val) => sum + val, 0) / values.length).toFixed(2));
+  Object.keys(dimensions).forEach(dim => {
+    if (dimensions[dim].length > 0) {
+      dimensionAverages[dim] = dimensions[dim].reduce((sum, val) => sum + val, 0) / dimensions[dim].length;
+    } else {
+      dimensionAverages[dim] = 0;
     }
   });
 
   return dimensionAverages;
 }
 
-// Função para classificar questões por status (crítico, neutro, positivo)
-export function classifyQuestions(questionAverages, goals = { QS: 4, QO: 4, QI: 4 }) {
+// Função para classificar questões
+export function classifyQuestions(questionAverages, goals) {
   const classification = {
-    critical: [], // < 3
-    neutral: [],  // >= 3 e < meta
-    positive: []  // >= meta
+    critical: [],
+    neutral: [],
+    positive: []
   };
 
-  Object.entries(questionAverages).forEach(([code, data]) => {
-    const goal = goals[data.dimension] || 4;
-    
-    if (data.average < 3) {
-      classification.critical.push({ code, ...data });
-    } else if (data.average >= goal) {
-      classification.positive.push({ code, ...data });
+  Object.keys(questionAverages).forEach(questionCode => {
+    const average = questionAverages[questionCode];
+    const dimension = DIMENSION_MAPPING[questionCode];
+    const goal = goals[dimension] || 4.0;
+
+    const item = {
+      code: questionCode,
+      average,
+      dimension,
+      question: getQuestionText(questionCode)
+    };
+
+    if (average < 3.0) {
+      classification.critical.push(item);
+    } else if (average >= goal) {
+      classification.positive.push(item);
     } else {
-      classification.neutral.push({ code, ...data });
+      classification.neutral.push(item);
     }
   });
 
   return classification;
 }
 
-// Função para extrair dados de perfil
-export function extractProfileData(processedData) {
-  if (!processedData || !processedData.data.length) return {};
+// Função para obter texto da questão
+function getQuestionText(questionCode) {
+  const reverseMapping = Object.fromEntries(
+    Object.entries(QUESTION_MAPPING).map(([text, code]) => [code, text])
+  );
+  return reverseMapping[questionCode] || questionCode;
+}
 
-  const { data } = processedData;
+// Função para extrair dados de perfil
+export function extractProfileData(dataset) {
+  if (!dataset || !dataset.data || dataset.data.length === 0) {
+    return {};
+  }
+
   const profileData = {
     sexo: {},
     idade: {},
@@ -267,181 +299,146 @@ export function extractProfileData(processedData) {
     funcionarioPublico: {}
   };
 
-  // Função para categorizar idade
-  const categorizeAge = (age) => {
-    const ageNum = parseInt(age);
-    if (isNaN(ageNum)) return 'Não informado';
-    
-    if (ageNum <= 20) return 'Até 20 anos';
-    if (ageNum >= 21 && ageNum <= 23) return 'De 21 a 23 anos';
-    if (ageNum >= 24 && ageNum <= 32) return 'De 24 a 32 anos';
-    if (ageNum >= 33) return 'Acima de 33 anos';
-    
-    return 'Não informado';
-  };
-
-  data.forEach(row => {
-    // Sexo
-    const sexo = row['Qual o seu sexo?'] || row['sexo'];
+  dataset.data.forEach(row => {
+    // Processar sexo
+    const sexoKey = Object.keys(row).find(key => key.toLowerCase().includes('sexo'));
+    const sexo = row[sexoKey];
     if (sexo) {
       profileData.sexo[sexo] = (profileData.sexo[sexo] || 0) + 1;
     }
 
-    // Idade (com categorização)
-    const idade = row['Qual a sua idade?'] || row['idade'];
-    if (idade) {
-      const ageCategory = categorizeAge(idade);
-      profileData.idade[ageCategory] = (profileData.idade[ageCategory] || 0) + 1;
+    // Processar idade com categorização
+    const idadeKey = Object.keys(row).find(key => key.toLowerCase().includes('idade'));
+    const idade = parseInt(row[idadeKey]);
+    if (!isNaN(idade)) {
+      let faixaIdade;
+      if (idade <= 20) faixaIdade = 'Até 20 anos';
+      else if (idade <= 23) faixaIdade = 'De 21 a 23 anos';
+      else if (idade <= 32) faixaIdade = 'De 24 a 32 anos';
+      else faixaIdade = 'Acima de 33 anos';
+      
+      profileData.idade[faixaIdade] = (profileData.idade[faixaIdade] || 0) + 1;
     }
 
-    // Escolaridade
-    const escolaridade = row['Qual seu nível de escolaridade completo?'] || row['escolaridade'];
+    // Processar escolaridade
+    const escolaridadeKey = Object.keys(row).find(key => key.toLowerCase().includes('escolaridade'));
+    const escolaridade = row[escolaridadeKey];
     if (escolaridade) {
       profileData.escolaridade[escolaridade] = (profileData.escolaridade[escolaridade] || 0) + 1;
     }
 
-    // Funcionário Público
-    const funcionario = row['Você é funcionário público?'] || row['funcionario'];
-    if (funcionario) {
-      profileData.funcionarioPublico[funcionario] = (profileData.funcionarioPublico[funcionario] || 0) + 1;
+    // Processar funcionário público
+    const funcionarioKey = Object.keys(row).find(key => 
+      key.toLowerCase().includes('funcionário público') || 
+      key.toLowerCase().includes('funcionario publico')
+    );
+    const funcionarioPublico = row[funcionarioKey];
+    if (funcionarioPublico) {
+      profileData.funcionarioPublico[funcionarioPublico] = (profileData.funcionarioPublico[funcionarioPublico] || 0) + 1;
     }
   });
 
   return profileData;
 }
 
-
-// Sistema de recomendações para questões críticas
-export const questionRecommendations = {
-  // Questionário Portal da Transparência (8 questões)
-  'QS3': { // O Portal é fácil de usar
-    actions: [
-      {
-        title: 'Pesquisa orientada e inteligente',
-        description: 'Implemente uma barra de busca que utilize inteligência artificial para entender a intenção do usuário. Por exemplo, se a pessoa digita "salário do governador", a busca deve direcioná-la diretamente para a página de remuneração de servidores, sem a necessidade de clicar em múltiplos links.',
-        priority: 'Alta'
-      },
-      {
-        title: 'Testes de usabilidade com o público',
-        description: 'Realize sessões periódicas de testes (experimentos) com cidadãos de diferentes perfis (idade, familiaridade com tecnologia, etc.). Observe como eles interagem com o portal, onde encontram dificuldades e quais termos de busca utilizam.',
-        priority: 'Média'
-      }
-    ]
-  },
-  'QS8': { // É fácil localizar os dados e as informações no Portal
-    actions: [
-      {
-        title: 'Categorização clara e padronizada',
-        description: 'Crie um menu principal com categorias lógicas e nomes simples, como "Receitas", "Despesas", "Servidores", "Licitações e Contratos". Dentro de cada categoria, use subcategorias intuitivas para evitar que o usuário se perca.',
-        priority: 'Alta'
-      },
-      {
-        title: 'Mapas de calor e análise de cliques',
-        description: 'Utilize ferramentas de análise de dados para entender quais páginas são mais acessadas e quais links recebem mais cliques. Identifique "pontos de atrito" onde os usuários desistem da navegação.',
-        priority: 'Média'
-      }
-    ]
-  },
-  'QS1': { // O Portal funciona sem falhas
-    actions: [
-      {
-        title: 'Dashboard de monitoramento em tempo real',
-        description: 'Crie um painel visível para todos os envolvidos mostrando métricas como tempo de carregamento, disponibilidade do servidor, taxa de erro e número de usuários ativos.',
-        priority: 'Alta'
-      },
-      {
-        title: 'Testes de regressão automatizados',
-        description: 'Crie scripts automatizados para simular o comportamento de usuários reais, verificando funcionalidade dos links, compatibilidade em múltiplos dispositivos e integridade dos dados.',
-        priority: 'Alta'
-      }
-    ]
-  },
-  'QI1': { // As informações são fáceis de entender
-    actions: [
-      {
-        title: 'Glossário interativo e linguagem simples',
-        description: 'Evite jargões técnicos e termos burocráticos. Crie um glossário interativo onde o usuário pode passar o mouse sobre termos como "Empenho", "Liquidação" ou "Orçamento" e visualizar explicações claras.',
-        priority: 'Média'
-      },
-      {
-        title: 'Visualização de dados e infográficos',
-        description: 'Apresente dados complexos em formatos visuais, como gráficos de barras, gráficos de pizza e infográficos. Isso torna a informação mais digerível e permite entendimento rápido dos principais pontos.',
-        priority: 'Alta'
-      }
-    ]
-  },
-  'QI2': { // As informações são precisas
-    actions: [
-      {
-        title: 'Processo de conciliação de dados automatizado',
-        description: 'Configure rotinas automatizadas para comparar dados do portal com os sistemas originais. Scripts diários podem verificar se totais publicados correspondem aos registros nos sistemas financeiros.',
-        priority: 'Alta'
-      },
-      {
-        title: 'Formulário de correção com rastreamento',
-        description: 'Crie um formulário simples para reportar erros com campos objetivos e sistema de rastreamento. O cidadão recebe um protocolo para acompanhar o status da correção.',
-        priority: 'Média'
-      }
-    ]
-  },
-  'QI7': { // As informações disponibilizadas estão atualizadas
-    actions: [
-      {
-        title: 'Automação da publicação de dados',
-        description: 'Integre o portal de transparência diretamente aos sistemas de gestão do governo para publicação automática de dados assim que são gerados, eliminando atualizações manuais.',
-        priority: 'Alta'
-      },
-      {
-        title: 'Exibição da data de atualização',
-        description: 'Em cada relatório, tabela ou conjunto de dados, inclua uma etiqueta clara mostrando a data e hora da última atualização para gerar confiança no usuário.',
-        priority: 'Baixa'
-      }
-    ]
-  },
-  'QO4': { // Consigo obter o que preciso no menor tempo possível
-    actions: [
-      {
-        title: 'Dashboard de acesso rápido',
-        description: 'Crie uma página inicial com os dados mais acessados (gastos com saúde, salário de servidores, despesas do mês). Torne-o dinâmico baseado no controle de acessos dos usuários.',
-        priority: 'Alta'
-      },
-      {
-        title: 'Caminhos de navegação guiados',
-        description: 'Para informações complexas, crie um passo a passo visual. Exemplo: "Como encontrar gasto de uma secretaria: Passo 1: Clique em \'Despesas\' > Passo 2: Selecione \'Órgãos\' > Passo 3: Escolha a secretaria".',
-        priority: 'Média'
-      }
-    ]
-  }
-};
-
 // Função para obter recomendações para questões críticas
 export function getRecommendationsForCriticalQuestions(questionAverages, goals) {
   const recommendations = [];
   
-  Object.entries(questionAverages).forEach(([code, data]) => {
-    if (data.average < 3.0 && questionRecommendations[code]) {
-      recommendations.push({
-        questionCode: code,
-        question: data.question,
-        average: data.average,
-        dimension: data.dimension,
-        actions: questionRecommendations[code].actions
-      });
+  Object.keys(questionAverages).forEach(questionCode => {
+    const average = questionAverages[questionCode];
+    const dimension = DIMENSION_MAPPING[questionCode];
+    
+    if (average < 3.0) {
+      const recommendation = {
+        questionCode,
+        question: getQuestionText(questionCode),
+        average,
+        dimension: getDimensionName(dimension),
+        actions: getActionsForQuestion(questionCode, dimension)
+      };
+      recommendations.push(recommendation);
     }
   });
 
   return recommendations;
 }
 
-// Mapeamento de questões similares entre questionários de 8 e 20 questões
-export const questionMapping = {
-  // Portal Transparência -> Questionário Completo
-  'QS3_transparency': 'QS3', // Portal é fácil de usar -> Sistema é fácil de usar
-  'QS8_transparency': 'QS8', // Fácil localizar dados -> Fácil localizar serviços
-  'QS9_transparency': 'QS9', // Navegação intuitiva -> Navegação intuitiva
-  'QS1_transparency': 'QS1', // Portal funciona sem falhas -> Sistema funciona sem falhas
-  'QI1_transparency': 'QI1', // Informações fáceis de entender -> Informações fáceis de entender
-  'QI2_transparency': 'QI2', // Informações precisas -> Informações precisas
-  'QO4_transparency': 'QO4', // Obter o que precisa rapidamente -> Obter o que precisa rapidamente
-};
+// Função para obter nome da dimensão
+function getDimensionName(dimension) {
+  const names = {
+    'QS': 'Qualidade do Sistema',
+    'QO': 'Qualidade da Operação',
+    'QI': 'Qualidade da Informação'
+  };
+  return names[dimension] || dimension;
+}
+
+// Função para obter ações específicas por questão
+function getActionsForQuestion(questionCode, dimension) {
+  const actions = {
+    // Ações para Qualidade do Sistema
+    'QS1': [
+      {
+        title: 'Implementar Monitoramento de Sistema',
+        description: 'Criar sistema de monitoramento em tempo real para detectar e corrigir falhas automaticamente.',
+        priority: 'Alta'
+      }
+    ],
+    'QS2': [
+      {
+        title: 'Melhorar Acessibilidade',
+        description: 'Implementar recursos de acessibilidade mais visíveis e fáceis de encontrar na interface.',
+        priority: 'Alta'
+      }
+    ],
+    'QS3': [
+      {
+        title: 'Simplificar Interface',
+        description: 'Redesenhar a interface para torná-la mais intuitiva e fácil de usar.',
+        priority: 'Alta'
+      }
+    ],
+    
+    // Ações para Qualidade da Informação
+    'QI1': [
+      {
+        title: 'Revisar Linguagem',
+        description: 'Simplificar a linguagem utilizada nas informações para torná-las mais claras.',
+        priority: 'Média'
+      }
+    ],
+    'QI2': [
+      {
+        title: 'Validar Informações',
+        description: 'Implementar processo de validação contínua das informações disponibilizadas.',
+        priority: 'Alta'
+      }
+    ],
+    
+    // Ações para Qualidade da Operação
+    'QO1': [
+      {
+        title: 'Melhorar Suporte Técnico',
+        description: 'Capacitar equipe de suporte e implementar sistema de tickets mais eficiente.',
+        priority: 'Alta'
+      }
+    ],
+    'QO2': [
+      {
+        title: 'Otimizar Atendimento',
+        description: 'Implementar chatbot e melhorar processos de resolução de problemas.',
+        priority: 'Média'
+      }
+    ]
+  };
+
+  return actions[questionCode] || [
+    {
+      title: 'Análise Detalhada',
+      description: 'Realizar análise específica para identificar pontos de melhoria nesta questão.',
+      priority: 'Média'
+    }
+  ];
+}
 

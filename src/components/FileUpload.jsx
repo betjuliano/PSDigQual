@@ -1,158 +1,222 @@
-import { useState, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { processFileWithEncoding } from '../lib/dataProcessor';
 
-export function FileUpload({ onUpload, onReset }) {
-  const [dragActive, setDragActive] = useState(false);
+const FileUpload = ({ onDataProcessed, onReset }) => {
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null);
-  const fileInputRef = useRef(null);
+  const [fileName, setFileName] = useState('');
+  const [processingDetails, setProcessingDetails] = useState(null);
 
-  const handleDrag = (e) => {
+  const handleDragOver = useCallback((e) => {
     e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
+    setIsDragOver(true);
+  }, []);
 
-  const handleDrop = (e) => {
+  const handleDragLeave = useCallback((e) => {
     e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    setIsDragOver(false);
     
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      handleFileUpload(files[0]);
     }
-  };
+  }, []);
 
-  const handleChange = (e) => {
-    e.preventDefault();
-    if (e.target.files && e.target.files[0]) {
-      handleFile(e.target.files[0]);
+  const handleFileSelect = useCallback((e) => {
+    const file = e.target.files[0];
+    if (file) {
+      handleFileUpload(file);
     }
-  };
+  }, []);
 
-  const handleFile = (file) => {
-    // Verificar se é um arquivo CSV
+  const handleFileUpload = async (file) => {
     if (!file.name.toLowerCase().endsWith('.csv')) {
       setUploadStatus({
-        success: false,
-        error: 'Por favor, selecione um arquivo CSV válido.'
+        type: 'error',
+        message: 'Por favor, selecione um arquivo CSV válido.'
       });
       return;
     }
 
-    // Ler o arquivo
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const csvText = e.target.result;
-        const result = onUpload(csvText, file.name);
-        setUploadStatus(result);
-      } catch (error) {
-        setUploadStatus({
-          success: false,
-          error: 'Erro ao processar o arquivo: ' + error.message
-        });
-      }
-    };
-    reader.readAsText(file, 'ISO-8859-1'); // Usar encoding correto para os arquivos
-  };
+    setIsProcessing(true);
+    setFileName(file.name);
+    setUploadStatus(null);
+    setProcessingDetails({
+      step: 'Lendo arquivo...',
+      progress: 25
+    });
 
-  const onButtonClick = () => {
-    fileInputRef.current?.click();
+    try {
+      // Tentar processar com diferentes encodings
+      setProcessingDetails({
+        step: 'Detectando codificação...',
+        progress: 50
+      });
+
+      const result = await processFileWithEncoding(file);
+      
+      setProcessingDetails({
+        step: 'Processando dados...',
+        progress: 75
+      });
+
+      // Simular um pequeno delay para mostrar o progresso
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      setProcessingDetails({
+        step: 'Finalizando...',
+        progress: 100
+      });
+
+      // Determinar tipo de questionário
+      const questionarioType = result.type === 'transparency' ? 
+        'Portal da Transparência (8 questões)' : 
+        'Questionário Completo (20+ questões)';
+
+      setUploadStatus({
+        type: 'success',
+        message: `Arquivo processado com sucesso! Identificado: ${questionarioType}`,
+        details: {
+          records: result.data.length,
+          type: questionarioType,
+          encoding: 'Detectado automaticamente'
+        }
+      });
+
+      // Passar dados processados para o componente pai
+      onDataProcessed(result);
+
+    } catch (error) {
+      console.error('Erro ao processar arquivo:', error);
+      setUploadStatus({
+        type: 'error',
+        message: `Erro ao processar arquivo: ${error.message}`,
+        details: {
+          suggestion: 'Verifique se o arquivo está no formato CSV correto com separador ponto e vírgula (;)'
+        }
+      });
+    } finally {
+      setIsProcessing(false);
+      setProcessingDetails(null);
+    }
   };
 
   const handleReset = () => {
     setUploadStatus(null);
+    setFileName('');
+    setProcessingDetails(null);
     onReset();
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
-        Envio de Respostas
-      </h3>
+    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <h3 className="text-lg font-semibold text-gray-800 mb-4">Envio de Respostas</h3>
+      <p className="text-gray-600 mb-6">
+        Faça upload de arquivos CSV com respostas dos questionários.
+      </p>
 
       {/* Área de Upload */}
       <div
-        className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-          dragActive 
-            ? 'border-blue-400 bg-blue-50' 
+        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+          isDragOver
+            ? 'border-blue-400 bg-blue-50'
+            : isProcessing
+            ? 'border-gray-300 bg-gray-50'
             : 'border-gray-300 hover:border-gray-400'
         }`}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv"
-          onChange={handleChange}
-          className="hidden"
-        />
-
-        <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        
-        <p className="text-lg font-medium text-gray-900 mb-2">
-          Arraste e solte seu arquivo CSV aqui
-        </p>
-        <p className="text-sm text-gray-600 mb-4">
-          ou clique para selecionar um arquivo
-        </p>
-        
-        <button
-          onClick={onButtonClick}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <FileText className="w-4 h-4 mr-2" />
-          Selecionar Arquivo
-        </button>
+        {isProcessing ? (
+          <div className="space-y-4">
+            <div className="animate-spin mx-auto w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+            <div>
+              <p className="text-gray-700 font-medium">{fileName}</p>
+              {processingDetails && (
+                <div className="mt-2">
+                  <p className="text-sm text-gray-600">{processingDetails.step}</p>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div 
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${processingDetails.progress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <Upload className="mx-auto h-12 w-12 text-gray-400" />
+            <div>
+              <p className="text-lg font-medium text-gray-700">
+                Arraste e solte seu arquivo CSV aqui
+              </p>
+              <p className="text-gray-500">ou clique para selecionar um arquivo</p>
+            </div>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="file-upload"
+              disabled={isProcessing}
+            />
+            <label
+              htmlFor="file-upload"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Selecionar Arquivo
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Status do Upload */}
       {uploadStatus && (
-        <div className={`mt-4 p-4 rounded-lg ${
-          uploadStatus.success 
-            ? 'bg-green-50 border border-green-200' 
-            : 'bg-red-50 border border-red-200'
+        <div className={`mt-4 p-4 rounded-lg border ${
+          uploadStatus.type === 'success' 
+            ? 'bg-green-50 border-green-200' 
+            : 'bg-red-50 border-red-200'
         }`}>
           <div className="flex items-start">
-            {uploadStatus.success ? (
+            {uploadStatus.type === 'success' ? (
               <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 mr-3" />
             ) : (
               <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 mr-3" />
             )}
-            
             <div className="flex-1">
-              {uploadStatus.success ? (
-                <div>
-                  <p className="text-sm font-medium text-green-800">
-                    Arquivo processado com sucesso!
-                  </p>
-                  <p className="text-sm text-green-700 mt-1">
-                    Tipo: {uploadStatus.type}
-                  </p>
-                  <p className="text-sm text-green-700">
-                    Respostas processadas: {uploadStatus.responses}
-                  </p>
+              <p className={`font-medium ${
+                uploadStatus.type === 'success' ? 'text-green-800' : 'text-red-800'
+              }`}>
+                {uploadStatus.message}
+              </p>
+              {uploadStatus.details && (
+                <div className="mt-2 text-sm text-gray-600">
+                  {uploadStatus.type === 'success' ? (
+                    <div className="space-y-1">
+                      <p>• Registros processados: {uploadStatus.details.records}</p>
+                      <p>• Tipo: {uploadStatus.details.type}</p>
+                      <p>• Codificação: {uploadStatus.details.encoding}</p>
+                    </div>
+                  ) : (
+                    <p>• {uploadStatus.details.suggestion}</p>
+                  )}
                 </div>
-              ) : (
-                <p className="text-sm font-medium text-red-800">
-                  {uploadStatus.error}
-                </p>
               )}
             </div>
-
             <button
               onClick={() => setUploadStatus(null)}
-              className="ml-3 text-gray-400 hover:text-gray-600"
+              className="ml-2 text-gray-400 hover:text-gray-600"
             >
               <X className="w-4 h-4" />
             </button>
@@ -161,26 +225,31 @@ export function FileUpload({ onUpload, onReset }) {
       )}
 
       {/* Instruções */}
-      <div className="mt-6 text-sm text-gray-600">
-        <h4 className="font-medium text-gray-900 mb-2">Instruções:</h4>
-        <ul className="space-y-1 list-disc list-inside">
-          <li>Aceita arquivos CSV com questionários de 8 ou 20 questões</li>
-          <li>O sistema identifica automaticamente o tipo de questionário</li>
-          <li>Respostas são convertidas para escala numérica (1-5)</li>
-          <li>Linhas em branco são removidas automaticamente</li>
+      <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <h4 className="font-medium text-blue-800 mb-2">Instruções:</h4>
+        <ul className="text-sm text-blue-700 space-y-1">
+          <li>• Aceita arquivos CSV com questionários de 8 ou 20+ questões</li>
+          <li>• O sistema identifica automaticamente o tipo de questionário</li>
+          <li>• Respostas são convertidas para escala numérica (1-5)</li>
+          <li>• Linhas em branco são removidas automaticamente</li>
+          <li>• Suporte para codificação UTF-8 e Latin-1</li>
         </ul>
       </div>
 
       {/* Botão para voltar aos dados padrão */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <button
-          onClick={handleReset}
-          className="text-sm text-gray-600 hover:text-gray-800 underline"
-        >
-          Voltar aos dados padrão
-        </button>
-      </div>
+      {uploadStatus?.type === 'success' && (
+        <div className="mt-4 text-center">
+          <button
+            onClick={handleReset}
+            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Voltar aos dados padrão
+          </button>
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default FileUpload;
 

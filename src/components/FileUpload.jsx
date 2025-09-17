@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, X } from 'lucide-react';
-import { processFileWithEncoding } from '../lib/dataProcessor';
+import { Upload, FileText, CheckCircle, AlertCircle, X, Database } from 'lucide-react';
+import { processFileWithEncoding, processCSVData } from '../lib/dataProcessor';
 
 const FileUpload = ({ onDataProcessed, onReset }) => {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -35,6 +35,73 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
       handleFileUpload(file);
     }
   }, []);
+
+  // Função para carregar arquivos base do projeto
+  const handleLoadBaseFile = async (fileName) => {
+    setIsProcessing(true);
+    setFileName(fileName);
+    setUploadStatus(null);
+    setProcessingDetails({
+      step: 'Carregando arquivo base...',
+      progress: 25
+    });
+
+    try {
+      // Carregar arquivo da pasta assets
+      const response = await fetch(`/src/assets/${fileName}`);
+      if (!response.ok) {
+        throw new Error('Arquivo não encontrado');
+      }
+      
+      setProcessingDetails({
+        step: 'Processando dados...',
+        progress: 50
+      });
+
+      const text = await response.text();
+      const result = processCSVData(text);
+      
+      setProcessingDetails({
+        step: 'Finalizando...',
+        progress: 100
+      });
+
+      // Simular um pequeno delay para mostrar o progresso
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Determinar tipo de questionário
+      const questionarioType = fileName.includes('base8') ? 
+        'Portal da Transparência (8 questões)' : 
+        'Questionário Completo (20+ questões)';
+
+      setUploadStatus({
+        type: 'success',
+        message: `Arquivo base carregado com sucesso! Tipo: ${questionarioType}`,
+        details: {
+          records: result.data.length,
+          type: questionarioType,
+          encoding: 'UTF-8',
+          source: 'Arquivo base do projeto'
+        }
+      });
+
+      // Passar dados processados para o componente pai
+      onDataProcessed(result);
+
+    } catch (error) {
+      console.error('Erro ao carregar arquivo base:', error);
+      setUploadStatus({
+        type: 'error',
+        message: `Erro ao carregar arquivo base: ${error.message}`,
+        details: {
+          suggestion: 'Verifique se o arquivo existe na pasta assets do projeto'
+        }
+      });
+    } finally {
+      setIsProcessing(false);
+      setProcessingDetails(null);
+    }
+  };
 
   const handleFileUpload = async (file) => {
     if (!file.name.toLowerCase().endsWith('.csv')) {
@@ -86,7 +153,8 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
         details: {
           records: result.data.length,
           type: questionarioType,
-          encoding: 'Detectado automaticamente'
+          encoding: 'Detectado automaticamente',
+          source: 'Upload do usuário'
         }
       });
 
@@ -119,8 +187,34 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">Envio de Respostas</h3>
       <p className="text-gray-600 mb-6">
-        Faça upload de arquivos CSV com respostas dos questionários.
+        Faça upload de arquivos CSV com respostas dos questionários ou carregue os dados de exemplo.
       </p>
+
+      {/* Botões para carregar arquivos base */}
+      <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <h4 className="font-medium text-blue-800 mb-3">Carregar Dados de Exemplo:</h4>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => handleLoadBaseFile('base20.csv')}
+            disabled={isProcessing}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <Database className="w-4 h-4 mr-2" />
+            Questionário Completo (20 questões)
+          </button>
+          <button
+            onClick={() => handleLoadBaseFile('base8.csv')}
+            disabled={isProcessing}
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <Database className="w-4 h-4 mr-2" />
+            Portal Transparência (8 questões)
+          </button>
+        </div>
+        <p className="text-sm text-blue-700 mt-2">
+          Clique nos botões acima para carregar automaticamente os dados de exemplo do projeto.
+        </p>
+      </div>
 
       {/* Área de Upload */}
       <div
@@ -172,7 +266,7 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
             />
             <label
               htmlFor="file-upload"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
+              className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 cursor-pointer transition-colors"
             >
               <FileText className="w-4 h-4 mr-2" />
               Selecionar Arquivo
@@ -207,6 +301,7 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
                       <p>• Registros processados: {uploadStatus.details.records}</p>
                       <p>• Tipo: {uploadStatus.details.type}</p>
                       <p>• Codificação: {uploadStatus.details.encoding}</p>
+                      <p>• Origem: {uploadStatus.details.source}</p>
                     </div>
                   ) : (
                     <p>• {uploadStatus.details.suggestion}</p>
@@ -225,14 +320,15 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
       )}
 
       {/* Instruções */}
-      <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <h4 className="font-medium text-blue-800 mb-2">Instruções:</h4>
-        <ul className="text-sm text-blue-700 space-y-1">
-          <li>• Aceita arquivos CSV com questionários de 8 ou 20+ questões</li>
-          <li>• O sistema identifica automaticamente o tipo de questionário</li>
-          <li>• Respostas são convertidas para escala numérica (1-5)</li>
-          <li>• Linhas em branco são removidas automaticamente</li>
-          <li>• Suporte para codificação UTF-8 e Latin-1</li>
+      <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <h4 className="font-medium text-gray-800 mb-2">Instruções:</h4>
+        <ul className="text-sm text-gray-700 space-y-1">
+          <li>• <strong>Dados de exemplo:</strong> Use os botões azuis acima para carregar dados pré-configurados</li>
+          <li>• <strong>Upload personalizado:</strong> Aceita arquivos CSV com questionários de 8 ou 20+ questões</li>
+          <li>• <strong>Identificação automática:</strong> O sistema detecta o tipo de questionário automaticamente</li>
+          <li>• <strong>Conversão Likert:</strong> Respostas são convertidas para escala numérica (1-5)</li>
+          <li>• <strong>Limpeza automática:</strong> Linhas em branco são removidas automaticamente</li>
+          <li>• <strong>Múltiplos encodings:</strong> Suporte para UTF-8 e Latin-1</li>
         </ul>
       </div>
 

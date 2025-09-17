@@ -155,36 +155,39 @@ export function processCSVData(csvText, encoding = 'utf-8') {
 
 // Função para processar arquivo com diferentes encodings
 export async function processFileWithEncoding(file) {
-  const encodings = ['utf-8', 'latin-1', 'iso-8859-1'];
-  
-  for (const encoding of encodings) {
-    try {
-      const text = await readFileAsText(file, encoding);
-      const result = processCSVData(text, encoding);
-      if (result.data.length > 0) {
-        console.log(`Sucesso com encoding: ${encoding}`);
-        return result;
-      }
-    } catch (error) {
-      console.log(`Falha com encoding ${encoding}:`, error.message);
+  try {
+    // Primeiro tenta UTF-8
+    let text = await readFileAsText(file, 'UTF-8');
+    let result = processCSVData(text);
+    
+    if (result.data.length > 0) {
+      console.log('Sucesso com encoding UTF-8');
+      return result;
     }
+    
+    // Se falhar, tenta ISO-8859-1 (Latin-1)
+    text = await readFileAsText(file, 'ISO-8859-1');
+    result = processCSVData(text);
+    
+    if (result.data.length > 0) {
+      console.log('Sucesso com encoding ISO-8859-1');
+      return result;
+    }
+    
+    throw new Error('Não foi possível processar o arquivo');
+  } catch (error) {
+    console.error('Erro no processamento:', error);
+    throw new Error(`Erro ao processar arquivo: ${error.message}`);
   }
-  
-  throw new Error('Não foi possível processar o arquivo com nenhum encoding suportado');
 }
 
 // Função auxiliar para ler arquivo como texto
-function readFileAsText(file, encoding = 'utf-8') {
+function readFileAsText(file, encoding = 'UTF-8') {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target.result);
-    reader.onerror = (e) => reject(new Error('Erro ao ler arquivo'));
-    
-    if (encoding === 'utf-8') {
-      reader.readAsText(file, 'UTF-8');
-    } else {
-      reader.readAsText(file, 'ISO-8859-1');
-    }
+    reader.onload = (event) => resolve(event.target.result);
+    reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+    reader.readAsText(file, encoding);
   });
 }
 

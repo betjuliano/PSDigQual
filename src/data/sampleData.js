@@ -11,8 +11,7 @@ const LIKERT_MAPPING = {
 };
 
 // Mapeamento das questões para códigos
-const QUESTION_MAPPING = {
-  // Questionário completo (20+ questões)
+const COMPLETE_QUESTION_MAPPING = {
   'O sistema funciona sem falhas.': 'QS1',
   'Os recursos de acessibilidade do sistema são fáceis de encontrar.': 'QS2',
   'O sistema é fácil de usar.': 'QS3',
@@ -38,17 +37,19 @@ const QUESTION_MAPPING = {
   'Quando preciso de ajuda, minhas dificuldades são resolvidas.': 'QO6',
   'Meus dados são automaticamente identificados na solicitação dos serviços.': 'QO7',
   'Os serviços oferecidos são confiáveis.': 'QO8',
-  'Os serviços permitem interações em tempo real (ex. chatbot, IA).': 'QO9',
-  
-  // Questionário Portal da Transparência (8 questões) - mapeadas para códigos corretos
+  'Os serviços permitem interações em tempo real (ex. chatbot, IA).': 'QO9'
+};
+
+const TRANSPARENCY_QUESTION_MAPPING = {
   'O Portal é fácil de usar.': 'QS3',
   'É fácil localizar os dados e as informações no Portal.': 'QS8',
   'A navegação pelo Portal é intuitiva.': 'QS9',
-  'O Portal funciona sem falhas.': 'QS1',
-  'As informações são fáceis de entender.': 'QI1',
-  'As informações são precisas.': 'QI2',
-  'As informações disponibilizadas estão atualizadas.': 'QI7',
-  'Consigo obter o que preciso no menor tempo possível.': 'QO4'
+  'O Portal funciona sem falhas.': 'QS1'
+};
+
+const QUESTION_MAPPING = {
+  ...COMPLETE_QUESTION_MAPPING,
+  ...TRANSPARENCY_QUESTION_MAPPING
 };
 
 // Função para converter dados de exemplo para formato processado

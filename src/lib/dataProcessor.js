@@ -1,6 +1,5 @@
 // Mapeamento das questões para códigos
-const QUESTION_MAPPING = {
-  // Questionário completo (20+ questões)
+const COMPLETE_QUESTION_MAPPING = {
   'O sistema funciona sem falhas.': 'QS1',
   'Os recursos de acessibilidade do sistema são fáceis de encontrar.': 'QS2',
   'O sistema é fácil de usar.': 'QS3',
@@ -26,18 +25,33 @@ const QUESTION_MAPPING = {
   'Quando preciso de ajuda, minhas dificuldades são resolvidas.': 'QO6',
   'Meus dados são automaticamente identificados na solicitação dos serviços.': 'QO7',
   'Os serviços oferecidos são confiáveis.': 'QO8',
-  'Os serviços permitem interações em tempo real (ex. chatbot, IA).': 'QO9',
-  
-  // Questionário Portal da Transparência (8 questões) - mapeadas para códigos corretos
-  'O Portal é fácil de usar.': 'QS3',  // Corresponde a QS3 do questionário completo
-  'É fácil localizar os dados e as informações no Portal.': 'QS8',  // Corresponde a QS8
-  'A navegação pelo Portal é intuitiva.': 'QS9',  // Corresponde a QS9
-  'O Portal funciona sem falhas.': 'QS1',  // Corresponde a QS1
-  'As informações são fáceis de entender.': 'QI1',  // Corresponde a QI1
-  'As informações são precisas.': 'QI2',  // Corresponde a QI2
-  'As informações disponibilizadas estão atualizadas.': 'QI7',  // Corresponde a QI7
-  'Consigo obter o que preciso no menor tempo possível.': 'QO4'  // Corresponde a QO4
+  'Os serviços permitem interações em tempo real (ex. chatbot, IA).': 'QO9'
 };
+
+// Questões específicas do questionário do Portal da Transparência
+const TRANSPARENCY_QUESTION_MAPPING = {
+  'O Portal é fácil de usar.': 'QS3',
+  'É fácil localizar os dados e as informações no Portal.': 'QS8',
+  'A navegação pelo Portal é intuitiva.': 'QS9',
+  'O Portal funciona sem falhas.': 'QS1'
+};
+
+const QUESTION_MAPPING = {
+  ...COMPLETE_QUESTION_MAPPING,
+  ...TRANSPARENCY_QUESTION_MAPPING
+};
+
+const TRANSPARENCY_CODES = new Set(['QS1', 'QS3', 'QS8', 'QS9', 'QI1', 'QI2', 'QI7', 'QO4']);
+const TRANSPARENCY_SPECIFIC_LABELS = new Set(Object.keys(TRANSPARENCY_QUESTION_MAPPING));
+const NORMALIZED_QUESTION_CODE_MAP = new Map(
+  Object.entries(QUESTION_MAPPING).map(([text, code]) => [createNormalizedQuestionKey(text), code])
+);
+const DEFAULT_QUESTION_TEXT = Object.fromEntries(
+  Object.entries(COMPLETE_QUESTION_MAPPING).map(([text, code]) => [code, text])
+);
+const TRANSPARENCY_QUESTION_TEXT = Object.fromEntries(
+  Object.entries(TRANSPARENCY_QUESTION_MAPPING).map(([text, code]) => [code, text])
+);
 
 // Mapeamento das dimensões
 const DIMENSION_MAPPING = {
@@ -64,11 +78,257 @@ const LIKERT_MAPPING = {
   'Concordo totalmente': 5
 };
 
+// Faixas etárias utilizadas na aplicação
+const AGE_RANGE_LABELS = [
+  'Até 20 anos',
+  'De 21 a 23 anos',
+  'De 24 a 32 anos',
+  'Acima de 33 anos'
+];
+
+function normalizeText(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : value;
+}
+
+function createNormalizedQuestionKey(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[aeiou]/g, '')
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function normalizeProfileKey(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  return String(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function getProfileTokens(value) {
+  if (value === null || value === undefined) {
+    return [];
+  }
+
+  const normalized = normalizeProfileKey(value)
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+  if (!normalized) {
+    return [];
+  }
+
+  return normalized.split(/\s+/).filter(Boolean);
+}
+
+function getProfileCategory(header) {
+  if (!header) {
+    return null;
+  }
+
+  const tokens = getProfileTokens(header);
+  if (tokens.length === 0) {
+    return null;
+  }
+
+  const tokenSet = new Set(tokens);
+
+  if (tokenSet.has('sexo') || tokenSet.has('genero')) {
+    return 'sexo';
+  }
+
+  const hasIdade = tokenSet.has('idade') ||
+    tokenSet.has('faixaidade') ||
+    (tokenSet.has('faixa') && tokenSet.has('etaria')) ||
+    tokenSet.has('etaria');
+  if (hasIdade) {
+    return 'idade';
+  }
+
+  const hasEscolaridade = tokenSet.has('escolaridade') ||
+    tokenSet.has('escolar') ||
+    tokenSet.has('instrucao') ||
+    tokenSet.has('formacao');
+  if (hasEscolaridade) {
+    return 'escolaridade';
+  }
+
+  const hasFuncionario = tokens.some(token => token.startsWith('funcionari'));
+  const hasServidor = tokens.some(token => token.startsWith('servidor'));
+  const hasPublico = tokens.some(token => token.startsWith('public'));
+  const hasPublicServiceContext = hasPublico && (
+    hasFuncionario ||
+    hasServidor ||
+    tokenSet.has('setor') ||
+    tokenSet.has('servico') ||
+    tokenSet.has('servicos') ||
+    tokenSet.has('trabalha') ||
+    tokenSet.has('atua') ||
+    tokenSet.has('agente')
+  );
+
+  if (hasFuncionario || hasServidor || hasPublicServiceContext) {
+    return 'servidor';
+  }
+
+  return null;
+}
+
+function assignProfileValue(row, category, rawValue) {
+  if (!row || !category) {
+    return;
+  }
+
+  const canonicalKey = `__profile__${category}`;
+  const value = typeof rawValue === 'string' ? rawValue.trim() : rawValue;
+
+  if (value === undefined || value === null || value === '') {
+    if (!(canonicalKey in row)) {
+      row[canonicalKey] = null;
+    }
+    return;
+  }
+
+  row[canonicalKey] = value;
+}
+
+function getProfileValue(row, category) {
+  if (!row || !category) {
+    return undefined;
+  }
+
+  const canonicalKey = `__profile__${category}`;
+  if (canonicalKey in row) {
+    return row[canonicalKey];
+  }
+
+  const matchingKey = Object.keys(row).find(key => getProfileCategory(key) === category);
+  return matchingKey ? row[matchingKey] : undefined;
+}
+
+function getAgeRangeFromNumber(age) {
+  if (age === null || age === undefined || Number.isNaN(age)) {
+    return null;
+  }
+
+  if (age <= 20) return 'Até 20 anos';
+  if (age <= 23) return 'De 21 a 23 anos';
+  if (age <= 32) return 'De 24 a 32 anos';
+  return 'Acima de 33 anos';
+}
+
+function determineAgeRange(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === 'number') {
+    return getAgeRangeFromNumber(value);
+  }
+
+  const stringValue = String(value).trim();
+  if (stringValue === '') {
+    return null;
+  }
+
+  if (AGE_RANGE_LABELS.includes(stringValue)) {
+    return stringValue;
+  }
+
+  const normalizedNumber = Number(stringValue.replace(',', '.'));
+  if (!Number.isNaN(normalizedNumber)) {
+    return getAgeRangeFromNumber(normalizedNumber);
+  }
+
+  const numberMatches = stringValue.match(/\d+/g);
+  if (numberMatches && numberMatches.length > 0) {
+    const numbers = numberMatches
+      .map(match => Number(match))
+      .filter(num => !Number.isNaN(num));
+
+    if (numbers.length > 0) {
+      if (numbers.length >= 2) {
+        const min = Math.min(...numbers);
+        const max = Math.max(...numbers);
+        const rangeCategories = new Set([
+          getAgeRangeFromNumber(min),
+          getAgeRangeFromNumber(max)
+        ].filter(Boolean));
+
+        if (rangeCategories.size === 1) {
+          return rangeCategories.values().next().value;
+        }
+
+        const average = (min + max) / 2;
+        return getAgeRangeFromNumber(average);
+      }
+
+      return getAgeRangeFromNumber(numbers[0]);
+    }
+  }
+
+  return stringValue;
+}
+
+function normalizeServidorResponse(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const stringValue = String(value).trim();
+  if (stringValue === '') {
+    return null;
+  }
+
+  const normalized = stringValue.toLowerCase();
+
+  if (normalized === 'sim' || normalized === 'yes') {
+    return 'Sim';
+  }
+
+  if (normalized === 'não' || normalized === 'nao' || normalized === 'no') {
+    return 'Não';
+  }
+
+  if (normalized.includes('não') || normalized.includes('nao')) {
+    return 'Não';
+  }
+
+  if (normalized.includes('funcion') || normalized.includes('servid')) {
+    return 'Sim';
+  }
+
+  return stringValue;
+}
+
+function getQuestionCodeForHeader(header) {
+  if (!header) {
+    return null;
+  }
+
+  if (QUESTION_MAPPING[header]) {
+    return QUESTION_MAPPING[header];
+  }
+
+  const normalizedKey = createNormalizedQuestionKey(header);
+  return NORMALIZED_QUESTION_CODE_MAP.get(normalizedKey) || null;
+}
+
 // Função para detectar encoding e processar CSV
-export function processCSVData(csvText, encoding = 'utf-8') {
+export function processCSVData(csvText) {
   try {
     console.log('🔍 Iniciando processamento do CSV...');
-    
+
     // Se o texto contém caracteres estranhos, pode ser latin-1
     if (csvText.includes('�') || csvText.includes('Ã')) {
       console.log('Detectado possível encoding latin-1, tentando reprocessar...');
@@ -109,13 +369,29 @@ export function processCSVData(csvText, encoding = 'utf-8') {
     console.log(`✅ Cabeçalhos válidos: ${validHeaders.length}/${headers.length}`);
     
     // Detectar questões válidas
-    const questionHeaders = headers.filter(header => {
-      const questionCode = QUESTION_MAPPING[header];
-      return questionCode || (header && header.includes('?'));
+    const questionCodesSet = new Set();
+    const headerMetadata = headers.map(header => {
+      const profileCategory = getProfileCategory(header);
+      const questionCode = profileCategory ? null : getQuestionCodeForHeader(header);
+
+      if (questionCode) {
+        questionCodesSet.add(questionCode);
+      }
+
+      const isQuestionHeader = Boolean(questionCode) || (!profileCategory && header && header.includes('?'));
+
+      return {
+        header,
+        questionCode,
+        isQuestionHeader,
+        profileCategory
+      };
     });
-    
+
+    const questionHeaders = headerMetadata.filter(meta => meta.isQuestionHeader);
+
     console.log(`❓ Questões detectadas: ${questionHeaders.length}`);
-    
+
     const data = [];
     const invalidRows = [];
 
@@ -130,30 +406,30 @@ export function processCSVData(csvText, encoding = 'utf-8') {
       let validResponses = 0;
       let totalQuestions = 0;
       
-      headers.forEach((header, index) => {
+      headerMetadata.forEach((meta, index) => {
+        const { header, questionCode, profileCategory } = meta;
         const value = values[index];
-        
-        // Verificar se é questão de perfil
-        if (header.toLowerCase().includes('sexo') || 
-            header.toLowerCase().includes('idade') || 
-            header.toLowerCase().includes('escolaridade') || 
-            header.toLowerCase().includes('funcionário público') ||
-            header.toLowerCase().includes('funcionario publico')) {
+
+        if (profileCategory) {
           row[header] = value;
+          assignProfileValue(row, profileCategory, value);
+          return;
         }
-        // Verificar se é questão Likert
-        else if (QUESTION_MAPPING[header]) {
-          const questionCode = QUESTION_MAPPING[header];
-          totalQuestions++;
-          
-          if (LIKERT_MAPPING[value]) {
-            row[questionCode] = LIKERT_MAPPING[value];
-            validResponses++;
-          } else if (value && value !== '') {
-            row[questionCode] = value; // Manter valor original se não for Likert
-          } else {
-            row[questionCode] = null; // Valor vazio
-          }
+
+        if (!questionCode) {
+          return;
+        }
+
+        questionCodesSet.add(questionCode);
+        totalQuestions++;
+
+        if (LIKERT_MAPPING[value]) {
+          row[questionCode] = LIKERT_MAPPING[value];
+          validResponses++;
+        } else if (value && value !== '') {
+          row[questionCode] = value; // Manter valor original se não for Likert
+        } else {
+          row[questionCode] = null; // Valor vazio
         }
       });
 
@@ -186,24 +462,22 @@ export function processCSVData(csvText, encoding = 'utf-8') {
     }
     
     // VALIDAÇÃO FINAL DOS DADOS
-    const sampleRow = data[0];
-    const questionCodes = Object.keys(sampleRow).filter(key => 
-      key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO')
-    );
-    
+    const questionCodes = Array.from(questionCodesSet);
+
     console.log(`🎯 Códigos de questões identificados: ${questionCodes.length}`);
     console.log(`📝 Códigos: ${questionCodes.join(', ')}`);
-    
+
     if (questionCodes.length === 0) {
       console.warn('⚠️ Nenhum código de questão identificado nos dados');
     }
 
     // Determinar tipo baseado nas questões presentes
-    const hasTransparencyQuestions = data.some(row => 
-      Object.keys(row).some(key => key.startsWith('QT'))
-    );
-    
-    const type = hasTransparencyQuestions ? 'transparency' : 'complete';
+    const containsTransparencyLabels = headers.some(header => TRANSPARENCY_SPECIFIC_LABELS.has(header));
+    const matchesTransparencyCodes = questionCodes.length > 0 &&
+      questionCodes.every(code => TRANSPARENCY_CODES.has(code)) &&
+      questionCodes.length <= TRANSPARENCY_CODES.size;
+
+    const type = (containsTransparencyLabels || matchesTransparencyCodes) ? 'transparency' : 'complete';
 
     console.log(`Processados ${data.length} registros do tipo ${type}`);
     
@@ -275,56 +549,86 @@ function readFileAsText(file, encoding = 'UTF-8') {
 
 // Função para calcular médias por questão
 export function calculateQuestionAverages(dataset) {
-  if (!dataset || !dataset.data || dataset.data.length === 0) {
+  if (!dataset || !Array.isArray(dataset.data) || dataset.data.length === 0) {
     return {};
   }
 
-  const averages = {};
-  const counts = {};
+  const accumulator = {};
 
-  // Inicializar contadores
   dataset.data.forEach(row => {
-    Object.keys(row).forEach(key => {
-      if (key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO')) {
-        if (!averages[key]) {
-          averages[key] = 0;
-          counts[key] = 0;
-        }
-        if (typeof row[key] === 'number' && !isNaN(row[key])) {
-          averages[key] += row[key];
-          counts[key]++;
-        }
+    if (!row) return;
+
+    Object.entries(row).forEach(([key, value]) => {
+      if (!key || (!key.startsWith('QS') && !key.startsWith('QI') && !key.startsWith('QO'))) {
+        return;
+      }
+
+      if (!accumulator[key]) {
+        accumulator[key] = { sum: 0, count: 0 };
+      }
+
+      const numericValue = typeof value === 'number' ? value : Number(value);
+      if (!Number.isNaN(numericValue)) {
+        accumulator[key].sum += numericValue;
+        accumulator[key].count += 1;
       }
     });
   });
 
-  // Calcular médias
-  Object.keys(averages).forEach(key => {
-    if (counts[key] > 0) {
-      averages[key] = averages[key] / counts[key];
+  const result = {};
+
+  Object.entries(accumulator).forEach(([code, stats]) => {
+    if (!stats || stats.count === 0) {
+      return;
     }
+
+    const dimension = DIMENSION_MAPPING[code];
+    result[code] = {
+      average: stats.sum / stats.count,
+      count: stats.count,
+      sum: stats.sum,
+      dimension,
+      question: getQuestionText(code)
+    };
   });
 
-  return averages;
+  return result;
 }
 
 // Função para calcular médias por dimensão
 export function calculateDimensionAverages(questionAverages) {
-  const dimensions = { QS: [], QO: [], QI: [] };
+  const dimensionTotals = {
+    QS: { sum: 0, count: 0 },
+    QO: { sum: 0, count: 0 },
+    QI: { sum: 0, count: 0 }
+  };
 
-  Object.keys(questionAverages).forEach(questionCode => {
+  Object.entries(questionAverages || {}).forEach(([questionCode, data]) => {
     const dimension = DIMENSION_MAPPING[questionCode];
-    if (dimension && dimensions[dimension]) {
-      dimensions[dimension].push(questionAverages[questionCode]);
+    if (!dimension || !dimensionTotals[dimension]) {
+      return;
+    }
+
+    if (data && typeof data === 'object' && typeof data.sum === 'number' && typeof data.count === 'number' && data.count > 0) {
+      dimensionTotals[dimension].sum += data.sum;
+      dimensionTotals[dimension].count += data.count;
+      return;
+    }
+
+    const value = typeof data === 'number' ? data : data?.average;
+    if (typeof value === 'number' && !Number.isNaN(value)) {
+      dimensionTotals[dimension].sum += value;
+      dimensionTotals[dimension].count += 1;
     }
   });
 
   const dimensionAverages = {};
-  Object.keys(dimensions).forEach(dim => {
-    if (dimensions[dim].length > 0) {
-      dimensionAverages[dim] = dimensions[dim].reduce((sum, val) => sum + val, 0) / dimensions[dim].length;
+
+  Object.entries(dimensionTotals).forEach(([dimension, stats]) => {
+    if (stats.count > 0) {
+      dimensionAverages[dimension] = stats.sum / stats.count;
     } else {
-      dimensionAverages[dim] = 0;
+      dimensionAverages[dimension] = 0;
     }
   });
 
@@ -339,8 +643,11 @@ export function classifyQuestions(questionAverages, goals) {
     positive: []
   };
 
-  Object.keys(questionAverages).forEach(questionCode => {
-    const average = questionAverages[questionCode];
+  Object.entries(questionAverages || {}).forEach(([questionCode, data]) => {
+    const average = typeof data === 'number' ? data : data?.average;
+    if (typeof average !== 'number' || Number.isNaN(average)) {
+      return;
+    }
     const dimension = DIMENSION_MAPPING[questionCode];
     const goal = goals[dimension] || 4.0;
 
@@ -348,7 +655,8 @@ export function classifyQuestions(questionAverages, goals) {
       code: questionCode,
       average,
       dimension,
-      question: getQuestionText(questionCode)
+      question: (typeof data === 'object' && data?.question) ? data.question : getQuestionText(questionCode),
+      count: typeof data === 'object' ? data?.count : undefined
     };
 
     if (average < 3.0) {
@@ -365,10 +673,9 @@ export function classifyQuestions(questionAverages, goals) {
 
 // Função para obter texto da questão
 function getQuestionText(questionCode) {
-  const reverseMapping = Object.fromEntries(
-    Object.entries(QUESTION_MAPPING).map(([text, code]) => [code, text])
-  );
-  return reverseMapping[questionCode] || questionCode;
+  return DEFAULT_QUESTION_TEXT[questionCode] ||
+    TRANSPARENCY_QUESTION_TEXT[questionCode] ||
+    questionCode;
 }
 
 // Função para extrair dados de perfil
@@ -385,55 +692,48 @@ export function extractProfileData(dataset) {
   };
 
   dataset.data.forEach(row => {
+    if (!row) {
+      return;
+    }
+
     // Processar sexo
-    const sexoKey = Object.keys(row).find(key => key.toLowerCase().includes('sexo'));
-    const sexo = row[sexoKey];
-    if (sexo) {
-      profileData.sexo[sexo] = (profileData.sexo[sexo] || 0) + 1;
+    const sexoValue = getProfileValue(row, 'sexo');
+    if (sexoValue) {
+      const normalizedSexo = typeof sexoValue === 'string' ? sexoValue.trim() : sexoValue;
+      if (normalizedSexo) {
+        profileData.sexo[normalizedSexo] = (profileData.sexo[normalizedSexo] || 0) + 1;
+      }
     }
 
     // Processar idade com categorização
-    const idadeKey = Object.keys(row).find(key => key.toLowerCase().includes('idade'));
-    const idade = parseInt(row[idadeKey]);
-    if (!isNaN(idade)) {
-      let faixaIdade;
-      if (idade <= 20) faixaIdade = 'Até 20 anos';
-      else if (idade <= 23) faixaIdade = 'De 21 a 23 anos';
-      else if (idade <= 32) faixaIdade = 'De 24 a 32 anos';
-      else faixaIdade = 'Acima de 33 anos';
-      
+    const idadeValue = getProfileValue(row, 'idade');
+    const faixaIdade = determineAgeRange(idadeValue);
+    if (faixaIdade) {
       profileData.idade[faixaIdade] = (profileData.idade[faixaIdade] || 0) + 1;
     }
 
     // Processar escolaridade
-    const escolaridadeKey = Object.keys(row).find(key => key.toLowerCase().includes('escolaridade'));
-    const escolaridade = row[escolaridadeKey];
-    if (escolaridade) {
-      profileData.escolaridade[escolaridade] = (profileData.escolaridade[escolaridade] || 0) + 1;
+    const escolaridadeValue = getProfileValue(row, 'escolaridade');
+    if (escolaridadeValue) {
+      const normalizedEscolaridade = typeof escolaridadeValue === 'string' ? escolaridadeValue.trim() : escolaridadeValue;
+      if (normalizedEscolaridade) {
+        profileData.escolaridade[normalizedEscolaridade] = (profileData.escolaridade[normalizedEscolaridade] || 0) + 1;
+      }
     }
 
     // Processar funcionário público (incluindo variações como servidor público)
-    const funcionarioKey = Object.keys(row).find(key => {
-      const keyLower = key.toLowerCase();
-      return keyLower.includes('funcionário público') || 
-             keyLower.includes('funcionario publico') ||
-             keyLower.includes('servidor público') ||
-             keyLower.includes('servidor publico') ||
-             keyLower.includes('funcionário') ||
-             keyLower.includes('funcionario') ||
-             keyLower.includes('servidor');
-    });
-    const funcionarioPublico = row[funcionarioKey];
+    const funcionarioPublico = getProfileValue(row, 'servidor');
     if (funcionarioPublico) {
-      // Normalizar as respostas para padronizar funcionário e servidor público
-      let normalizedResponse = funcionarioPublico;
-      if (funcionarioPublico.toLowerCase() === 'sim') {
-        normalizedResponse = 'Funcionário/Servidor Público';
-      } else if (funcionarioPublico.toLowerCase() === 'não' || funcionarioPublico.toLowerCase() === 'nao') {
-        normalizedResponse = 'Não é Funcionário Público';
+      const normalizedResponse = normalizeServidorResponse(funcionarioPublico);
+      if (normalizedResponse) {
+        const label = normalizedResponse === 'Sim'
+          ? 'Funcionário/Servidor Público'
+          : normalizedResponse === 'Não'
+            ? 'Não é Funcionário Público'
+            : normalizedResponse;
+
+        profileData.funcionarioPublico[label] = (profileData.funcionarioPublico[label] || 0) + 1;
       }
-      
-      profileData.funcionarioPublico[normalizedResponse] = (profileData.funcionarioPublico[normalizedResponse] || 0) + 1;
     }
   });
 
@@ -443,23 +743,34 @@ export function extractProfileData(dataset) {
 // Função para obter recomendações para questões críticas
 export function getRecommendationsForCriticalQuestions(questionAverages, goals) {
   const recommendations = [];
-  
-  Object.keys(questionAverages).forEach(questionCode => {
-    const average = questionAverages[questionCode];
-    const dimension = DIMENSION_MAPPING[questionCode];
-    
-    if (average < 3.0) {
-      const recommendation = {
-        questionCode,
-        question: getQuestionText(questionCode),
-        average,
-        dimension: getDimensionName(dimension),
-        actions: getActionsForQuestion(questionCode, dimension)
-      };
-      recommendations.push(recommendation);
+
+  Object.entries(questionAverages || {}).forEach(([questionCode, data]) => {
+    const average = typeof data === 'number' ? data : data?.average;
+    if (typeof average !== 'number' || Number.isNaN(average)) {
+      return;
     }
+    const dimension = (typeof data === 'object' && data?.dimension) ? data.dimension : DIMENSION_MAPPING[questionCode];
+    const goal = goals?.[dimension] ?? 4.0;
+    const gap = goal - average;
+    const isCritical = average < 3.0 || gap >= 0.5;
+
+    if (!isCritical) {
+      return;
+    }
+
+    const recommendation = {
+      questionCode,
+      question: (typeof data === 'object' && data?.question) ? data.question : getQuestionText(questionCode),
+      average,
+      dimension: getDimensionName(dimension),
+      goal,
+      gap,
+      actions: getActionsForQuestion(questionCode)
+    };
+    recommendations.push(recommendation);
   });
 
+  recommendations.sort((a, b) => b.gap - a.gap);
   return recommendations;
 }
 
@@ -474,7 +785,7 @@ function getDimensionName(dimension) {
 }
 
 // Função para obter ações específicas por questão
-function getActionsForQuestion(questionCode, dimension) {
+function getActionsForQuestion(questionCode) {
   const actions = {
     // Ações específicas para as 8 questões do Portal da Transparência
     'QS3': [ // O Portal é fácil de usar
@@ -608,69 +919,83 @@ function getActionsForQuestion(questionCode, dimension) {
 }
 
 export function filterDataByDemographics(dataset, demographicFilters) {
-  if (!dataset || !dataset.data) {
+  if (!dataset) {
     return dataset;
   }
 
-  // Verificar se há filtros ativos
-  const hasActiveFilters = Object.values(demographicFilters).some(filter => filter.length > 0);
-  
+  const dataArray = Array.isArray(dataset) ? dataset : dataset.data;
+
+  if (!Array.isArray(dataArray) || dataArray.length === 0) {
+    return dataset;
+  }
+
+  const filters = demographicFilters || { sexo: [], idade: [], escolaridade: [], servidor: [] };
+  const hasActiveFilters = Object.values(filters).some(filter => filter.length > 0);
+
   if (!hasActiveFilters) {
     return dataset;
   }
 
-  const filteredData = dataset.data.filter(row => {
+  const normalizedSexFilters = (filters.sexo || []).map(option => normalizeText(option));
+  const normalizedEducationFilters = (filters.escolaridade || []).map(option => normalizeText(option));
+  const normalizedServidorFilters = (filters.servidor || []).map(option => normalizeText(normalizeServidorResponse(option) || option));
+
+  const filteredData = dataArray.filter(row => {
+    if (!row) {
+      return false;
+    }
+
     // Filtro por sexo
-    if (demographicFilters.sexo.length > 0) {
-      const sexoKey = Object.keys(row).find(key => key.toLowerCase().includes('sexo'));
-      const sexo = row[sexoKey];
-      if (!demographicFilters.sexo.includes(sexo)) {
+    if (filters.sexo.length > 0) {
+      const sexo = getProfileValue(row, 'sexo');
+      const normalizedSexo = normalizeText(sexo);
+      const hasSexoMatch = normalizedSexFilters.some(option => option === normalizedSexo);
+      if (!hasSexoMatch) {
         return false;
       }
     }
 
     // Filtro por idade
-    if (demographicFilters.idade.length > 0) {
-      const idadeKey = Object.keys(row).find(key => key.toLowerCase().includes('idade'));
-      const idade = parseInt(row[idadeKey]);
-      
-      let matchesAge = false;
-      for (const faixa of demographicFilters.idade) {
-        if (faixa === '18-25' && idade >= 18 && idade <= 25) matchesAge = true;
-        if (faixa === '26-35' && idade >= 26 && idade <= 35) matchesAge = true;
-        if (faixa === '36-45' && idade >= 36 && idade <= 45) matchesAge = true;
-        if (faixa === '46-55' && idade >= 46 && idade <= 55) matchesAge = true;
-        if (faixa === '56+' && idade >= 56) matchesAge = true;
+    if (filters.idade.length > 0) {
+      const idadeValue = getProfileValue(row, 'idade');
+      const faixaIdade = determineAgeRange(idadeValue);
+      if (!faixaIdade) {
+        return false;
       }
-      
-      if (!matchesAge) {
+
+      const hasAgeMatch = filters.idade.some(faixa => faixa === faixaIdade);
+      if (!hasAgeMatch) {
         return false;
       }
     }
 
     // Filtro por escolaridade
-    if (demographicFilters.escolaridade.length > 0) {
-      const escolaridadeKey = Object.keys(row).find(key => key.toLowerCase().includes('escolaridade'));
-      const escolaridade = row[escolaridadeKey];
-      if (!demographicFilters.escolaridade.includes(escolaridade)) {
+    if (filters.escolaridade.length > 0) {
+      const escolaridade = getProfileValue(row, 'escolaridade');
+      const normalizedEscolaridade = normalizeText(escolaridade);
+      const hasEscolaridadeMatch = normalizedEducationFilters.some(option => option === normalizedEscolaridade);
+      if (!hasEscolaridadeMatch) {
         return false;
       }
     }
 
     // Filtro por servidor público
-    if (demographicFilters.servidor.length > 0) {
-      const servidorKey = Object.keys(row).find(key => 
-        key.toLowerCase().includes('servidor') || 
-        key.toLowerCase().includes('público')
-      );
-      const servidor = row[servidorKey];
-      if (!demographicFilters.servidor.includes(servidor)) {
+    if (filters.servidor.length > 0) {
+      const servidor = getProfileValue(row, 'servidor');
+      const normalizedServidor = normalizeServidorResponse(servidor);
+      const normalizedServidorValue = normalizeText(normalizedServidor);
+      const hasServidorMatch = normalizedServidorFilters.some(option => option === normalizedServidorValue);
+      if (!hasServidorMatch) {
         return false;
       }
     }
 
     return true;
   });
+
+  if (Array.isArray(dataset)) {
+    return filteredData;
+  }
 
   return {
     ...dataset,

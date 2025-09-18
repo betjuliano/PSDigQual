@@ -33,7 +33,12 @@ const TRANSPARENCY_QUESTION_MAPPING = {
   'O Portal é fácil de usar.': 'QS3',
   'É fácil localizar os dados e as informações no Portal.': 'QS8',
   'A navegação pelo Portal é intuitiva.': 'QS9',
-  'O Portal funciona sem falhas.': 'QS1'
+  'O Portal funciona sem falhas.': 'QS1',
+  // Questões adicionais do Base8
+  'As informações são fáceis de entender.': 'QI1',
+  'As informações são precisas.': 'QI2',
+  'As informações disponibilizadas estão atualizadas.': 'QI7',
+  'Consigo obter o que preciso no menor tempo possível.': 'QO4'
 };
 
 const QUESTION_MAPPING = {
@@ -1132,15 +1137,17 @@ export function processCSVData(csvText, options = {}) {
         }
       });
 
-      // VALIDAÇÃO DA LINHA
+      // VALIDAÇÃO DA LINHA - MAIS PERMISSIVA
       const responseRate = totalQuestions > 0 ? (validResponses / totalQuestions) : 0;
       
-      // Só adicionar se tiver pelo menos uma questão Likert e taxa de resposta >= 30%
-      const hasLikertQuestions = Object.keys(row).some(key => 
-        key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO') || key.startsWith('QT')
+      // Verificar se tem pelo menos uma questão válida
+      const hasValidQuestions = Object.keys(row).some(key => 
+        (key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO') || key.startsWith('QT')) &&
+        row[key] !== null && row[key] !== undefined && row[key] !== ''
       );
       
-      if (hasLikertQuestions && responseRate >= 0.3) {
+      // Aceitar linha se tiver pelo menos uma questão válida (taxa mínima de 10%)
+      if (hasValidQuestions && responseRate >= 0.1) {
         data.push(row);
       } else {
         invalidRows.push({

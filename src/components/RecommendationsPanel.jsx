@@ -62,7 +62,7 @@ export function RecommendationsPanel({ recommendations }) {
                 <div className="flex items-center mb-2">
                   <span className="font-medium text-gray-900 mr-2">{rec.questionCode}</span>
                   <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded">
-                    Média: {rec.average.toFixed(2)}
+                    Média: {rec.average.toFixed(1)}
                   </span>
                   <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
                     {rec.dimension}
@@ -74,7 +74,7 @@ export function RecommendationsPanel({ recommendations }) {
                   )}
                   {typeof rec.gap === 'number' && rec.gap > 0 && (
                     <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded">
-                      Desvio: {rec.gap.toFixed(2)}
+                      Desvio: {rec.gap.toFixed(1)}
                     </span>
                   )}
                 </div>

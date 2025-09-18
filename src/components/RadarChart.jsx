@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { calculateDimensionAverages } from '../lib/dataProcessor';
-import { Target, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
+import { QUESTION_MAPPING } from '../data/sampleData';
+import { Target, TrendingUp, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Info } from 'lucide-react';
 
 const MODERN_COLORS = {
   critical: '#E53E3E',
@@ -13,6 +15,10 @@ const MODERN_COLORS = {
 };
 
 export function QualityRadarChart({ questionAverages }) {
+  const [expandedCard, setExpandedCard] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [selectedRadarPoint, setSelectedRadarPoint] = useState(null);
+
   // Verificar se há dados válidos
   if (!questionAverages || Object.keys(questionAverages).length === 0) {
     return (
@@ -43,7 +49,7 @@ export function QualityRadarChart({ questionAverages }) {
       code,
       average: data.average,
       dimension: code.substring(0, 2),
-      question: data.question || `Questão ${code}`
+      question: code // Usar código em vez do nome completo
     }));
 
   // Calcular médias das dimensões
@@ -119,7 +125,7 @@ export function QualityRadarChart({ questionAverages }) {
       const analysis = getAnalysis(item.average);
       return {
         dimension: item.code,
-        fullName: item.question,
+        fullName: item.code, // Usar código em vez do nome completo
         value: item.average,
         dimensionGroup: item.dimension,
         analysis: analysis.status,
@@ -167,7 +173,7 @@ export function QualityRadarChart({ questionAverages }) {
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Média:</span>
               <span className="font-bold text-lg" style={{ color: data.color }}>
-                {data.value.toFixed(2)}
+                {data.value.toFixed(1)}
               </span>
             </div>
             <div className="flex justify-between items-center">
@@ -209,64 +215,175 @@ export function QualityRadarChart({ questionAverages }) {
       
       <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: MODERN_COLORS.background }}>
         <div className="flex justify-between items-center">
-          <span className="text-sm font-medium" style={{ color: MODERN_COLORS.text }}>
-            Média Geral:
-          </span>
-          <span className="font-bold text-lg" style={{ color: MODERN_COLORS.text }}>
-            {overallAverage.toFixed(2)}
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-medium" style={{ color: MODERN_COLORS.text }}>
+              Média Geral:
+            </span>
+            <span className="font-bold text-lg" style={{ color: MODERN_COLORS.text }}>
+              {overallAverage.toFixed(1)}
+            </span>
+          </div>
+          <button
+            onClick={() => setShowDetails(!showDetails)}
+            className="flex items-center space-x-1 px-3 py-1 bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 text-sm"
+          >
+            <Info size={14} className="text-blue-600" />
+            <span className="text-blue-600 font-medium">
+              {showDetails ? 'Ocultar' : 'Ver'} Detalhes
+            </span>
+            {showDetails ? <ChevronUp size={14} className="text-blue-600" /> : <ChevronDown size={14} className="text-blue-600" />}
+          </button>
         </div>
         <div className="mt-2 text-xs" style={{ color: MODERN_COLORS.textLight }}>
           Meta recomendada: 4.0 | Total de dados: {questionData.length}
         </div>
+        
+        {showDetails && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="bg-white rounded-lg p-3 shadow-sm">
+                <div className="text-gray-600 text-xs mb-1">Média Geral</div>
+                <div className="font-bold text-lg text-blue-600">{overallAverage.toFixed(2)}</div>
+              </div>
+              <div className="bg-white rounded-lg p-3 shadow-sm">
+                <div className="text-gray-600 text-xs mb-1">Meta</div>
+                <div className="font-bold text-lg text-gray-700">4.00</div>
+              </div>
+              <div className="bg-white rounded-lg p-3 shadow-sm">
+                <div className="text-gray-600 text-xs mb-1">Diferença</div>
+                <div className={`font-bold text-lg ${overallAverage >= 4.0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {overallAverage >= 4.0 ? '+' : ''}{(overallAverage - 4.0).toFixed(2)}
+                </div>
+              </div>
+              <div className="bg-white rounded-lg p-3 shadow-sm">
+                <div className="text-gray-600 text-xs mb-1">Atingimento da Meta</div>
+                <div className={`font-bold text-lg ${overallAverage >= 4.0 ? 'text-green-600' : 'text-orange-600'}`}>
+                  {((overallAverage / 4.0) * 100).toFixed(1)}%
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 gap-4 mb-8">
         {radarData.map((item, index) => {
           const IconComponent = item.icon;
+          const isExpanded = expandedCard === index;
           return (
-            <div key={index} className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-5 border-2 hover:shadow-lg transition-all duration-300" 
+            <div key={index} className="bg-gradient-to-br from-white to-gray-50 rounded-xl border-2 hover:shadow-lg transition-all duration-300" 
                  style={{ borderColor: `${item.color}30` }}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-2">
-                  <div className="p-2 rounded-lg" style={{ backgroundColor: `${item.color}20` }}>
-                    <IconComponent size={16} style={{ color: item.color }} />
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-2 rounded-lg" style={{ backgroundColor: `${item.color}20` }}>
+                      <IconComponent size={16} style={{ color: item.color }} />
+                    </div>
+                    <h4 className="font-bold text-gray-900 text-sm">{item.fullName}</h4>
                   </div>
-                  <h4 className="font-bold text-gray-900 text-sm">{item.fullName}</h4>
-                </div>
-                <span 
-                  className="text-xs px-3 py-1 rounded-full font-bold"
-                  style={{ 
-                    backgroundColor: `${item.color}20`, 
-                    color: item.color 
-                  }}
-                >
-                  {item.analysis}
-                </span>
-              </div>
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-2xl font-bold" style={{ color: item.color }}>
-                    {item.value.toFixed(2)}
-                  </p>
-                  {item.questionCount && (
-                    <p className="text-xs text-gray-500">{item.questionCount} questões</p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <div className="w-12 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full transition-all duration-500"
+                  <div className="flex items-center space-x-2">
+                    <span 
+                      className="text-xs px-3 py-1 rounded-full font-bold"
                       style={{ 
-                        width: `${(item.value / 5) * 100}%`,
-                        backgroundColor: item.color 
+                        backgroundColor: `${item.color}20`, 
+                        color: item.color 
                       }}
-                    />
+                    >
+                      {item.analysis}
+                    </span>
+                    {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">{((item.value / 5) * 100).toFixed(0)}%</p>
                 </div>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-2xl font-bold" style={{ color: item.color }}>
+                      {item.value.toFixed(1)}
+                    </p>
+                    {item.questionCount && (
+                      <p className="text-xs text-gray-500">{item.questionCount} questões</p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <div className="w-12 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${Math.min((item.value / 4.0) * 100, 100)}%`,
+                          backgroundColor: item.color 
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Meta: {Math.min(((item.value / 4.0) * 100), 100).toFixed(0)}%</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600 mt-3 italic">{item.message}</p>
               </div>
-              <p className="text-xs text-gray-600 mt-3 italic">{item.message}</p>
+              
+              {isExpanded && (
+                <div className="px-5 pb-5 border-t border-gray-200">
+                  <div className="pt-4 space-y-3">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <Info size={14} style={{ color: item.color }} />
+                      <h5 className="font-semibold text-gray-900 text-sm">Detalhes da Análise</h5>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="bg-white rounded-lg p-3 shadow-sm">
+                        <div className="text-gray-600 text-xs mb-1">Valor Atual</div>
+                        <div className="font-bold text-lg" style={{ color: item.color }}>
+                          {item.value.toFixed(2)}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-white rounded-lg p-3 shadow-sm">
+                        <div className="text-gray-600 text-xs mb-1">Meta Recomendada</div>
+                        <div className="font-bold text-lg text-gray-700">4.0</div>
+                      </div>
+                      
+                      <div className="bg-white rounded-lg p-3 shadow-sm">
+                        <div className="text-gray-600 text-xs mb-1">Diferença da Meta</div>
+                        <div className={`font-bold text-lg ${item.value >= 4.0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {item.value >= 4.0 ? '+' : ''}{(item.value - 4.0).toFixed(2)}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-white rounded-lg p-3 shadow-sm">
+                        <div className="text-gray-600 text-xs mb-1">Atingimento da Meta</div>
+                        <div className={`font-bold text-lg ${item.value >= 4.0 ? 'text-green-600' : 'text-orange-600'}`}>
+                          {((item.value / 4.0) * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white rounded-lg p-3 shadow-sm">
+                      <div className="text-gray-600 text-xs mb-2">Recomendações</div>
+                      <div className="text-sm text-gray-700">
+                        {item.value < 3.0 && (
+                          <div className="text-red-700">
+                            • Implementar ações corretivas imediatas<br/>
+                            • Revisar processos e procedimentos<br/>
+                            • Monitoramento contínuo necessário
+                          </div>
+                        )}
+                        {item.value >= 3.0 && item.value < 4.0 && (
+                          <div className="text-yellow-700">
+                            • Identificar oportunidades de melhoria<br/>
+                            • Implementar melhorias incrementais<br/>
+                            • Acompanhar evolução dos indicadores
+                          </div>
+                        )}
+                        {item.value >= 4.0 && (
+                          <div className="text-green-700">
+                            • Manter as boas práticas atuais<br/>
+                            • Compartilhar experiências de sucesso<br/>
+                            • Buscar excelência contínua
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -303,13 +420,116 @@ export function QualityRadarChart({ questionAverages }) {
                 fill: '#8b5cf6', 
                 strokeWidth: 2, 
                 r: 5,
-                stroke: '#ffffff'
+                stroke: '#ffffff',
+                cursor: 'pointer'
+              }}
+              onClick={(data, index) => {
+                if (data && data.payload) {
+                  setSelectedRadarPoint(selectedRadarPoint === index ? null : index);
+                }
               }}
             />
             <Tooltip content={<CustomTooltip />} />
           </RadarChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Detalhes do Ponto Selecionado no Radar */}
+      {selectedRadarPoint !== null && radarData[selectedRadarPoint] && (
+        <div className="mb-8 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-200">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Info size={20} className="text-purple-600" />
+              </div>
+              <h4 className="text-lg font-bold text-purple-900">
+                Detalhes da Questão Selecionada
+              </h4>
+            </div>
+            <button
+              onClick={() => setSelectedRadarPoint(null)}
+              className="p-2 hover:bg-purple-100 rounded-lg transition-colors"
+            >
+              <ChevronUp size={16} className="text-purple-600" />
+            </button>
+          </div>
+          
+          {(() => {
+            const selectedItem = radarData[selectedRadarPoint];
+            const IconComponent = selectedItem.icon;
+            return (
+              <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="flex items-start space-x-4 mb-4">
+                  <div className="p-3 rounded-lg" style={{ backgroundColor: `${selectedItem.color}20` }}>
+                    <IconComponent size={24} style={{ color: selectedItem.color }} />
+                  </div>
+                  <div className="flex-1">
+                    <h5 className="font-bold text-gray-900 text-xl mb-2">
+                      {selectedItem.fullName}
+                    </h5>
+                    <div className="flex items-center space-x-4 mb-3">
+                      <span className="text-3xl font-bold" style={{ color: selectedItem.color }}>
+                        {selectedItem.value.toFixed(1)}
+                      </span>
+                      <span 
+                        className="px-3 py-1 rounded-full text-sm font-bold"
+                        style={{ 
+                          backgroundColor: `${selectedItem.color}20`, 
+                          color: selectedItem.color 
+                        }}
+                      >
+                        {selectedItem.analysis}
+                      </span>
+                    </div>
+                    <p className="text-gray-600 italic">{selectedItem.message}</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <div className="font-bold text-lg" style={{ color: selectedItem.color }}>
+                      {selectedItem.value.toFixed(2)}
+                    </div>
+                    <div className="text-gray-600">Valor Atual</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <div className="font-bold text-lg text-gray-700">4.00</div>
+                    <div className="text-gray-600">Meta</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <div className={`font-bold text-lg ${selectedItem.value >= 4.0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {selectedItem.value >= 4.0 ? '+' : ''}{(selectedItem.value - 4.0).toFixed(2)}
+                    </div>
+                    <div className="text-gray-600">Diferença</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <div className={`font-bold text-lg ${selectedItem.value >= 4.0 ? 'text-green-600' : 'text-orange-600'}`}>
+                      {((selectedItem.value / 4.0) * 100).toFixed(1)}%
+                    </div>
+                    <div className="text-gray-600">Atingimento</div>
+                  </div>
+                </div>
+                
+                <div className="mt-4">
+                  <div className="flex justify-between text-xs text-gray-600 mb-1">
+                    <span>Progresso para Meta</span>
+                    <span>{((selectedItem.value / 4.0) * 100).toFixed(1)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="h-2 rounded-full transition-all duration-500"
+                      style={{ 
+                        width: `${Math.min((selectedItem.value / 4.0) * 100, 100)}%`,
+                        backgroundColor: selectedItem.color 
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border" 
@@ -332,13 +552,13 @@ export function QualityRadarChart({ questionAverages }) {
                       <div 
                         className="h-full rounded-full"
                         style={{ 
-                          width: `${(item.value / 5) * 100}%`,
+                          width: `${Math.min((item.value / 4.0) * 100, 100)}%`,
                           backgroundColor: item.color 
                         }}
                       />
                     </div>
                     <span className="font-bold text-sm w-12 text-right" style={{ color: item.color }}>
-                      {item.value.toFixed(2)}
+                      {item.value.toFixed(1)}
                     </span>
                   </div>
                 </div>
@@ -358,14 +578,14 @@ export function QualityRadarChart({ questionAverages }) {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-600">Média Geral</span>
                 <span className="text-xl font-bold" style={{ color: MODERN_COLORS.excellent }}>
-                  {overallAverage.toFixed(2)}
+                  {overallAverage.toFixed(1)}
                 </span>
               </div>
               <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
                 <div 
                   className="h-full rounded-full transition-all duration-700"
                   style={{ 
-                    width: `${(overallAverage / 5) * 100}%`,
+                    width: `${Math.min((overallAverage / 4.0) * 100, 100)}%`,
                     backgroundColor: MODERN_COLORS.excellent 
                   }}
                 />

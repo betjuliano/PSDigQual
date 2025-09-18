@@ -160,7 +160,7 @@ export function RecommendationsPage({ analysis, goals }) {
                   <p className="text-sm text-blue-800">
                     <strong>Benefício:</strong> Melhora direta na experiência do usuário e na eficiência do sistema, 
                     contribuindo para elevar a média da questão "{action.question}" 
-                    (atual: {action.average.toFixed(2)}).
+                    (atual: {action.average.toFixed(1)}).
                   </p>
                 </div>
               </div>

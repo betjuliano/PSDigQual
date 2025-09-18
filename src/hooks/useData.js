@@ -7,18 +7,27 @@ import {
   getRecommendationsForCriticalQuestions,
   filterDataByDemographics
 } from '../lib/dataProcessor';
-import { sampleCompleteData, sampleTransparencyData } from '../data/sampleData';
+import { 
+  sampleBase26Data, 
+  sampleCompleteData, 
+  sampleBase20Data, 
+  sampleTransparencyData, 
+  sampleBase8Data 
+} from '../data/sampleData';
 
 export function useData() {
   const [data, setData] = useState({
-    complete: null,
-    transparency: null,
+    base26: null,
+    base20: null,
+    complete: null, // Alias para base20 (compatibilidade)
+    base8: null,
+    transparency: null, // Alias para base8 (compatibilidade)
     combined: null
   });
   
   const [filters, setFilters] = useState({
     period: 'all',
-    questionnaire: 'all', // 'all', 'complete', 'transparency'
+    questionnaire: 'all', // 'all', 'base26', 'base20', 'complete', 'base8', 'transparency'
     goals: {
       QS: 4.0,
       QO: 4.0,
@@ -43,16 +52,31 @@ export function useData() {
         // Simular carregamento
         await new Promise(resolve => setTimeout(resolve, 1000));
         
+        console.log('🔄 Carregando dados iniciais do PSDigQual...');
+        
         setData({
-          complete: sampleCompleteData,
-          transparency: sampleTransparencyData,
+          base26: sampleBase26Data,
+          base20: sampleBase20Data,
+          complete: sampleCompleteData, // Alias para compatibilidade
+          base8: sampleBase8Data,
+          transparency: sampleTransparencyData, // Alias para compatibilidade
           combined: {
-            data: [...sampleCompleteData.data, ...sampleTransparencyData.data],
+            data: [
+              ...sampleBase26Data.data, 
+              ...sampleBase20Data.data, 
+              ...sampleBase8Data.data
+            ],
             type: 'combined'
           }
         });
+        
+        console.log('✅ Dados iniciais carregados:', {
+          base26: sampleBase26Data.data.length,
+          base20: sampleBase20Data.data.length,
+          base8: sampleBase8Data.data.length
+        });
       } catch (error) {
-        console.error('Erro ao carregar dados:', error);
+        console.error('❌ Erro ao carregar dados:', error);
       } finally {
         setIsLoading(false);
       }
@@ -63,23 +87,38 @@ export function useData() {
 
   // Processar dados com base nos filtros
   const processedData = useMemo(() => {
-    if (!data.complete || !data.transparency) return null;
+    if (!data.base26 || !data.base20 || !data.base8) return null;
 
     let filteredData = { ...data };
 
     // Filtrar por tipo de questionário
     if (filters.questionnaire !== 'all') {
-      if (filters.questionnaire === 'complete') {
+      const emptyData = { data: [], type: 'empty' };
+      
+      if (filters.questionnaire === 'base26') {
         filteredData = {
-          complete: data.complete,
-          transparency: { data: [], type: 'transparency' },
-          combined: data.complete
+          ...data,
+          base20: emptyData,
+          complete: emptyData,
+          base8: emptyData,
+          transparency: emptyData,
+          combined: data.base26
         };
-      } else if (filters.questionnaire === 'transparency') {
+      } else if (filters.questionnaire === 'base20' || filters.questionnaire === 'complete') {
         filteredData = {
-          complete: { data: [], type: 'complete' },
-          transparency: data.transparency,
-          combined: data.transparency
+          ...data,
+          base26: emptyData,
+          base8: emptyData,
+          transparency: emptyData,
+          combined: data.base20
+        };
+      } else if (filters.questionnaire === 'base8' || filters.questionnaire === 'transparency') {
+        filteredData = {
+          ...data,
+          base26: emptyData,
+          base20: emptyData,
+          complete: emptyData,
+          combined: data.base8
         };
       }
     }
@@ -88,9 +127,21 @@ export function useData() {
     const hasActiveFilters = Object.values(filters.demographic).some(arr => arr.length > 0);
     if (hasActiveFilters) {
       filteredData = {
+        base26: {
+          ...filteredData.base26,
+          data: filterDataByDemographics(filteredData.base26.data, filters.demographic)
+        },
+        base20: {
+          ...filteredData.base20,
+          data: filterDataByDemographics(filteredData.base20.data, filters.demographic)
+        },
         complete: {
           ...filteredData.complete,
           data: filterDataByDemographics(filteredData.complete.data, filters.demographic)
+        },
+        base8: {
+          ...filteredData.base8,
+          data: filterDataByDemographics(filteredData.base8.data, filters.demographic)
         },
         transparency: {
           ...filteredData.transparency,
@@ -164,15 +215,19 @@ export function useData() {
 
       // processedData já vem processado do FileUpload
       const newData = processedData;
-      const isTransparency = newData.type === 'transparency';
+      const dataType = newData.type;
       
-      console.log(`📊 Carregando dados do tipo: ${isTransparency ? 'Transparência (8 questões)' : 'Completo (20 questões)'}`);
+      console.log(`📊 Carregando dados do tipo: ${dataType}`);
       console.log(`📈 Total de registros: ${newData.data.length}`);
       
       // SUBSTITUIÇÃO COMPLETA: Não manter dados anteriores
+      const emptyData = { data: [], type: 'empty' };
       const cleanData = {
-        complete: isTransparency ? { data: [], type: 'complete' } : newData,
-        transparency: isTransparency ? newData : { data: [], type: 'transparency' },
+        base26: dataType === 'base26' ? newData : emptyData,
+        base20: (dataType === 'base20' || dataType === 'complete') ? newData : emptyData,
+        complete: (dataType === 'base20' || dataType === 'complete') ? newData : emptyData,
+        base8: (dataType === 'base8' || dataType === 'transparency') ? newData : emptyData,
+        transparency: (dataType === 'base8' || dataType === 'transparency') ? newData : emptyData,
         combined: newData // Sempre usar os dados recém-carregados
       };
       
@@ -180,8 +235,9 @@ export function useData() {
       
       console.log('✅ Dados carregados com sucesso!');
       console.log('📋 Estrutura final:', {
-        complete: cleanData.complete.data.length,
-        transparency: cleanData.transparency.data.length,
+        base26: cleanData.base26.data.length,
+        base20: cleanData.base20.data.length,
+        base8: cleanData.base8.data.length,
         combined: cleanData.combined.data.length,
         type: cleanData.combined.type
       });
@@ -199,14 +255,24 @@ export function useData() {
   };
 
   const resetToDefault = () => {
+    console.log('🔄 Resetando para dados padrão...');
+    
     setData({
+      base26: sampleBase26Data,
+      base20: sampleBase20Data,
       complete: sampleCompleteData,
+      base8: sampleBase8Data,
       transparency: sampleTransparencyData,
       combined: {
-        data: [...sampleCompleteData.data, ...sampleTransparencyData.data],
+        data: [
+          ...sampleBase26Data.data, 
+          ...sampleBase20Data.data, 
+          ...sampleBase8Data.data
+        ],
         type: 'combined'
       }
     });
+    
     setFilters({
       period: 'all',
       questionnaire: 'all',
@@ -218,6 +284,8 @@ export function useData() {
         servidor: []
       }
     });
+    
+    console.log('✅ Dados resetados para padrão');
   };
 
   const updateFilters = (newFilters) => {

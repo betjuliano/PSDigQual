@@ -4,6 +4,39 @@ import { calculateDimensionAverages } from '../lib/dataProcessor';
 import { QUESTION_MAPPING } from '../data/sampleData';
 import { Target, TrendingUp, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Info } from 'lucide-react';
 
+// Função para obter o texto da questão baseado no código
+const getQuestionText = (questionCode) => {
+  const questionTexts = {
+    'QS1': 'O sistema funciona sem falhas.',
+    'QS2': 'Os recursos de acessibilidade do sistema são fáceis de encontrar.',
+    'QS3': 'O sistema é fácil de usar.',
+    'QS4': 'O sistema está disponível para uso em qualquer dia e hora.',
+    'QS5': 'O desempenho do sistema é satisfatório, independentemente da forma de acesso.',
+    'QS6': 'O sistema informa sobre as políticas de privacidade e segurança.',
+    'QS7': 'Acredito que meus dados estão seguros neste sistema.',
+    'QS8': 'É fácil localizar os serviços e as informações no sistema.',
+    'QS9': 'A navegação pelo sistema é intuitiva.',
+    'QS10': 'O sistema oferece instruções úteis de como utilizar os serviços.',
+    'QI1': 'As informações são fáceis de entender.',
+    'QI2': 'As informações são precisas.',
+    'QI3': 'As informações auxiliam na solicitação dos serviços.',
+    'QI4': 'Todas as informações necessárias para a solicitação dos serviços são fornecidas.',
+    'QI5': 'O prazo de entrega dos serviços é informado.',
+    'QI6': 'As taxas cobradas pelos serviços são informadas.',
+    'QI7': 'As informações disponibilizadas estão atualizadas.',
+    'QO1': 'Os serviços oferecem suporte técnico eficiente.',
+    'QO2': 'O atendimento resolve meus problemas.',
+    'QO3': 'Os serviços permitem a conclusão das tarefas no menor tempo possível.',
+    'QO4': 'Consigo obter o que preciso no menor tempo possível.',
+    'QO5': 'Os serviços atendem às minhas expectativas.',
+    'QO6': 'Quando preciso de ajuda, minhas dificuldades são resolvidas.',
+    'QO7': 'Meus dados são automaticamente identificados na solicitação dos serviços.',
+    'QO8': 'Os serviços oferecidos são confiáveis.'
+  };
+  
+  return questionTexts[questionCode] || questionCode;
+};
+
 const MODERN_COLORS = {
   critical: '#E53E3E',
   attention: '#F6AD55', 
@@ -123,9 +156,12 @@ export function QualityRadarChart({ questionAverages }) {
     // Radar por questões individuais (quando há dados suficientes)
     radarData = questionData.map(item => {
       const analysis = getAnalysis(item.average);
+      const questionText = getQuestionText(item.code);
       return {
         dimension: item.code,
-        fullName: item.code, // Usar código em vez do nome completo
+        fullName: `${item.code} - ${questionText}`, // Código + texto da questão
+        code: item.code,
+        questionText: questionText,
         value: item.average,
         dimensionGroup: item.dimension,
         analysis: analysis.status,
@@ -465,8 +501,16 @@ export function QualityRadarChart({ questionAverages }) {
                   </div>
                   <div className="flex-1">
                     <h5 className="font-bold text-gray-900 text-xl mb-2">
-                      {selectedItem.fullName}
+                      {selectedItem.code}
                     </h5>
+                    {selectedItem.questionText && (
+                      <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <h6 className="font-semibold text-blue-900 mb-1">Texto da Questão:</h6>
+                        <p className="text-sm text-blue-800 leading-relaxed">
+                          {selectedItem.questionText}
+                        </p>
+                      </div>
+                    )}
                     <div className="flex items-center space-x-4 mb-3">
                       <span className="text-3xl font-bold" style={{ color: selectedItem.color }}>
                         {selectedItem.value.toFixed(1)}
@@ -542,25 +586,32 @@ export function QualityRadarChart({ questionAverages }) {
             {radarData.map((item, index) => {
               const IconComponent = item.icon;
               return (
-                <div key={index} className="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm">
-                  <div className="flex items-center space-x-3">
-                    <IconComponent size={14} style={{ color: item.color }} />
-                    <span className="font-medium text-gray-900 text-sm">{item.fullName}</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full rounded-full"
-                        style={{ 
-                          width: `${Math.min((item.value / 4.0) * 100, 100)}%`,
-                          backgroundColor: item.color 
-                        }}
-                      />
+                <div key={index} className="bg-white rounded-lg p-3 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-3">
+                      <IconComponent size={14} style={{ color: item.color }} />
+                      <span className="font-bold text-gray-900 text-sm">{item.code}</span>
                     </div>
-                    <span className="font-bold text-sm w-12 text-right" style={{ color: item.color }}>
-                      {item.value.toFixed(1)}
-                    </span>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full rounded-full"
+                          style={{ 
+                            width: `${Math.min((item.value / 4.0) * 100, 100)}%`,
+                            backgroundColor: item.color 
+                          }}
+                        />
+                      </div>
+                      <span className="font-bold text-sm w-12 text-right" style={{ color: item.color }}>
+                        {item.value.toFixed(1)}
+                      </span>
+                    </div>
                   </div>
+                  {item.questionText && (
+                    <div className="text-xs text-gray-600 leading-relaxed">
+                      {item.questionText}
+                    </div>
+                  )}
                 </div>
               );
             })}

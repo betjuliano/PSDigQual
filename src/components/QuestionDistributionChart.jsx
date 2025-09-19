@@ -380,6 +380,7 @@ const QuestionDistributionChart = ({ data, goals, colorMode = 'status' }) => {
                    fill={MODERN_COLORS.text}
                    fontSize={12}
                    fontWeight="bold"
+                   formatter={(value) => value.toFixed(1)}
                  />
                  {data.map((entry, index) => (
                    <Cell 

@@ -351,28 +351,12 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
         <h4 className="font-medium text-blue-800 mb-3">Carregar Dados de Exemplo:</h4>
         <div className="flex flex-wrap gap-3">
           <button
-            onClick={() => handleLoadBaseFile('baseKelm.csv')}
-            disabled={isProcessing}
-            className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Database className="w-4 h-4 mr-2" />
-            Base26 (26 questões)
-          </button>
-          <button
             onClick={() => handleLoadBaseFile('base20.csv')}
             disabled={isProcessing}
             className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Database className="w-4 h-4 mr-2" />
-            Base20 (20 questões)
-          </button>
-          <button
-            onClick={() => handleLoadBaseFile('base8.csv')}
-            disabled={isProcessing}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Database className="w-4 h-4 mr-2" />
-            Base8 (8 questões)
+            Questionário Completo
           </button>
           <button
             onClick={() => handleLoadBaseFile('basetransp.csv')}

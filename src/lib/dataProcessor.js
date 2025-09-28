@@ -83,30 +83,7 @@ const LIKERT_MAPPING = {
   'Concordo totalmente': 5
 };
 
-<<<<<<< HEAD
-// Função para detectar encoding e processar CSV
-export function processCSVData(csvText, encoding = 'utf-8') {
-  try {
-    // Se o texto contém caracteres estranhos, pode ser latin-1
-    if (csvText.includes('�') || csvText.includes('Ã')) {
-      console.log('Detectado possível encoding latin-1, tentando reprocessar...');
-      // Em um ambiente real, aqui faria a conversão de encoding
-      // Por enquanto, vamos limpar os caracteres problemáticos
-      csvText = csvText
-        .replace(/Ã¡/g, 'á')
-        .replace(/Ã©/g, 'é')
-        .replace(/Ã­/g, 'í')
-        .replace(/Ã³/g, 'ó')
-        .replace(/Ãº/g, 'ú')
-        .replace(/Ã§/g, 'ç')
-        .replace(/Ã /g, 'à')
-        .replace(/Ã¢/g, 'â')
-        .replace(/Ã£/g, 'ã')
-        .replace(/Ãª/g, 'ê')
-        .replace(/Ã´/g, 'ô')
-        .replace(/Ã¨/g, 'è')
-        .replace(/�/g, '');
-=======
+
 // Faixas etárias utilizadas na aplicação
 const AGE_RANGE_LABELS = [
   'Até 20 anos',
@@ -1076,7 +1053,7 @@ export function processCSVData(csvText, options = {}) {
       }
     } else {
       console.log('✅ Nenhum problema de encoding detectado');
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
+
     }
 
     const lines = processedText.trim().split('\n');
@@ -1085,8 +1062,6 @@ export function processCSVData(csvText, options = {}) {
     }
 
     const headers = lines[0].split(';').map(h => h.trim());
-<<<<<<< HEAD
-=======
     console.log(`📋 Cabeçalhos detectados: ${headers.length}`);
     
     // VALIDAÇÃO RIGOROSA DOS CABEÇALHOS
@@ -1121,7 +1096,6 @@ export function processCSVData(csvText, options = {}) {
 
     console.log(`❓ Questões detectadas: ${questionHeaders.length}`);
 
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
     const data = [];
 
     for (let i = 1; i < lines.length; i++) {
@@ -1132,15 +1106,11 @@ export function processCSVData(csvText, options = {}) {
       if (values.length !== headers.length) continue;
 
       const row = {};
-<<<<<<< HEAD
-      headers.forEach((header, index) => {
-=======
       let validResponses = 0;
       let totalQuestions = 0;
       
       headerMetadata.forEach((meta, index) => {
         const { header, questionCode, profileCategory } = meta;
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
         const value = values[index];
 
         if (profileCategory) {
@@ -1148,22 +1118,6 @@ export function processCSVData(csvText, options = {}) {
           assignProfileValue(row, profileCategory, value);
           return;
         }
-<<<<<<< HEAD
-        // Verificar se é questão Likert
-        else if (QUESTION_MAPPING[header]) {
-          const questionCode = QUESTION_MAPPING[header];
-          const numericValue = LIKERT_MAPPING[value] || 3;
-          row[questionCode] = numericValue;
-        }
-      });
-
-      // Só adicionar se tiver pelo menos uma questão Likert
-      const hasLikertQuestions = Object.keys(row).some(key => 
-        key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO') || key.startsWith('QT')
-      );
-      
-      if (hasLikertQuestions) {
-=======
 
         if (!questionCode) {
           return;
@@ -1193,13 +1147,10 @@ export function processCSVData(csvText, options = {}) {
       
       // Aceitar linha se tiver pelo menos uma questão válida (taxa mínima de 10%)
       if (hasValidQuestions && responseRate >= 0.1) {
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
         data.push(row);
       }
     }
 
-<<<<<<< HEAD
-=======
     console.log(`📊 Processamento concluído:`);
     console.log(`  ✅ Linhas válidas: ${data.length}`);
     console.log(`  ❌ Linhas inválidas: ${invalidRows.length}`);
@@ -1218,7 +1169,6 @@ export function processCSVData(csvText, options = {}) {
       console.warn('⚠️ Nenhum código de questão identificado nos dados');
     }
 
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
     // Determinar tipo baseado nas questões presentes
     const containsTransparencyLabels = headers.some(header => TRANSPARENCY_SPECIFIC_LABELS.has(header));
     const matchesTransparencyCodes = questionCodes.length > 0 &&
@@ -1228,9 +1178,6 @@ export function processCSVData(csvText, options = {}) {
     const type = (containsTransparencyLabels || matchesTransparencyCodes) ? 'transparency' : 'complete';
 
     console.log(`Processados ${data.length} registros do tipo ${type}`);
-<<<<<<< HEAD
-    return { data, type };
-=======
     
     const result = {
       data,
@@ -1265,7 +1212,6 @@ export function processCSVData(csvText, options = {}) {
     console.log('📊 Metadados do processamento:', result.metadata);
     
     return result;
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
   } catch (error) {
     console.error('Erro ao processar CSV:', error);
     throw error;
@@ -2252,16 +2198,6 @@ export function extractProfileData(dataset) {
       }
     }
 
-<<<<<<< HEAD
-    // Processar funcionário público
-    const funcionarioKey = Object.keys(row).find(key => 
-      key.toLowerCase().includes('funcionário público') || 
-      key.toLowerCase().includes('funcionario publico')
-    );
-    const funcionarioPublico = row[funcionarioKey];
-    if (funcionarioPublico) {
-      profileData.funcionarioPublico[funcionarioPublico] = (profileData.funcionarioPublico[funcionarioPublico] || 0) + 1;
-=======
     // Processar funcionário público (incluindo variações como servidor público)
     const funcionarioPublico = getProfileValue(row, 'servidor');
     if (funcionarioPublico) {
@@ -2275,7 +2211,6 @@ export function extractProfileData(dataset) {
 
         profileData.funcionarioPublico[label] = (profileData.funcionarioPublico[label] || 0) + 1;
       }
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
     }
   });
 
@@ -2394,8 +2329,6 @@ function getActionsForQuestion(questionCode) {
   ];
 }
 
-<<<<<<< HEAD
-=======
 export function filterDataByDemographics(dataset, demographicFilters) {
   if (!dataset) {
     return dataset;
@@ -2480,5 +2413,3 @@ export function filterDataByDemographics(dataset, demographicFilters) {
     data: filteredData
   };
 }
-
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7

@@ -381,62 +381,6 @@ function App() {
     switch (activeTab) {
       case 'dashboard':
         return (
-<<<<<<< HEAD
-          <div className="space-y-6">
-            {/* Header */}
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Dashboard PSDigQual</h2>
-              <p className="text-gray-600">Análise abrangente da qualidade dos serviços públicos digitais por dimensões.</p>
-            </div>
-
-            {/* KPIs */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <KPICard
-                title="Total Respostas"
-                value={analysis.totalResponses}
-                icon={Users}
-                color="blue"
-              />
-              <KPICard
-                title="Média QS"
-                value={analysis.dimensionAverages.QS?.toFixed(1) || '0.0'}
-                subtitle="Qualidade do Sistema"
-                icon={BarChart3}
-                color="blue"
-              />
-              <KPICard
-                title="Média QO"
-                value={analysis.dimensionAverages.QO?.toFixed(1) || '0.0'}
-                subtitle="Qualidade da Operação"
-                icon={TrendingUp}
-                color="purple"
-              />
-              <KPICard
-                title="Média QI"
-                value={analysis.dimensionAverages.QI?.toFixed(1) || '0.0'}
-                subtitle="Qualidade da Informação"
-                icon={CheckCircle}
-                color="green"
-              />
-            </div>
-
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <DimensionChart 
-                dimensionAverages={analysis.dimensionAverages}
-                goals={filters.goals}
-              />
-              <QualityRadarChart 
-                questionAverages={analysis.questionAverages}
-              />
-            </div>
-
-            {/* Question Distribution */}
-            <QuestionDistributionChart 
-              questionAverages={analysis.questionAverages}
-              goals={filters.goals}
-            />
-=======
           <div className="space-y-8">
             {/* KPIs Principais */}
             <section id="kpis" className="scroll-mt-32">
@@ -1023,61 +967,7 @@ function App() {
           />
         );
 
-<<<<<<< HEAD
 
-=======
-      case 'analysis':
-        return (
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Lightbulb size={20} className="text-blue-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">Análises Detalhadas</h2>
-                  <p className="text-gray-600">Recomendações de melhoria baseadas nos dados coletados.</p>
-                </div>
-              </div>
-              
-              {/* Recomendações para Questões Críticas */}
-              <RecommendationsPanel recommendations={analysis.recommendations} />
-            </div>
-
-            {/* Pontos para Melhoria */}
-            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Clock size={20} className="text-yellow-600" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900">
-                  Pontos para Melhoria (Entre 3.0 e Meta)
-                </h3>
-              </div>
-              {analysis.classification.neutral.length === 0 ? (
-                <div className="text-center py-8">
-                  <CheckCircle size={48} className="mx-auto text-green-500 mb-4" />
-                  <p className="text-gray-600">Nenhum ponto para melhoria identificado.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {analysis.classification.neutral.map((item) => (
-                    <div key={item.code} className="border-l-4 border-yellow-500 bg-yellow-50 p-4 rounded-r-lg">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="font-bold text-yellow-800 text-lg">{item.code}</span>
-                        <span className="text-xl font-bold text-yellow-600">
-                          {item.average.toFixed(1)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-yellow-700">Dimensão: {item.dimension}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        );
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
 
       default:
         return null;

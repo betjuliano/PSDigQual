@@ -4,7 +4,8 @@ import {
   calculateDimensionAverages,
   classifyQuestions,
   extractProfileData,
-  getRecommendationsForCriticalQuestions
+  getRecommendationsForCriticalQuestions,
+  filterDataByDemographics
 } from '../lib/dataProcessor';
 import { 
   sampleBase26Data, 
@@ -31,6 +32,12 @@ export function useData() {
       QS: 4.0,
       QO: 4.0,
       QI: 4.0
+    },
+    demographic: {
+      sexo: [],
+      idade: [],
+      escolaridade: [],
+      servidor: []
     }
   });
 
@@ -116,10 +123,8 @@ export function useData() {
       }
     }
 
-<<<<<<< HEAD
-=======
     // Aplicar filtros demográficos
-    const hasActiveFilters = Object.values(filters.demographic).some(arr => arr.length > 0);
+    const hasActiveFilters = filters.demographic && Object.values(filters.demographic).some(arr => arr.length > 0);
     if (hasActiveFilters) {
       filteredData = {
         base26: {
@@ -148,8 +153,6 @@ export function useData() {
         }
       };
     }
-
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
     return filteredData;
   }, [data, filters]);
 
@@ -189,8 +192,6 @@ export function useData() {
     try {
       setIsLoading(true);
       
-<<<<<<< HEAD
-=======
       // LIMPEZA COMPLETA: Resetar todos os dados antes de carregar novos
       console.log('🔄 Iniciando limpeza completa de dados...');
       
@@ -210,33 +211,11 @@ export function useData() {
           servidor: []
         }
       });
-
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
+      
       // processedData já vem processado do FileUpload
       const newData = processedData;
       const dataType = newData.type;
       
-<<<<<<< HEAD
-      setData(prevData => {
-        const updatedData = {
-          ...prevData,
-          [isTransparency ? 'transparency' : 'complete']: {
-            ...newData,
-            type: isTransparency ? 'transparency' : 'complete'
-          }
-        };
-        
-        // Atualizar dados combinados
-        updatedData.combined = {
-          data: [
-            ...(updatedData.complete?.data || []), 
-            ...(updatedData.transparency?.data || [])
-          ],
-          type: 'combined'
-        };
-        
-        return updatedData;
-=======
       console.log(`📊 Carregando dados do tipo: ${dataType}`);
       console.log(`📈 Total de registros: ${newData.data.length}`);
       
@@ -260,10 +239,9 @@ export function useData() {
         base8: cleanData.base8.data.length,
         combined: cleanData.combined.data.length,
         type: cleanData.combined.type
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
       });
       
-      return { success: true, type: isTransparency ? 'transparency' : 'complete' };
+      return { success: true, type: dataType };
     } catch (error) {
       console.error('Erro ao processar dados:', error);
       return { success: false, error: error.message };
@@ -294,7 +272,13 @@ export function useData() {
     setFilters({
       period: 'all',
       questionnaire: 'all',
-      goals: { QS: 4.0, QO: 4.0, QI: 4.0 }
+      goals: { QS: 4.0, QO: 4.0, QI: 4.0 },
+      demographic: {
+        sexo: [],
+        idade: [],
+        escolaridade: [],
+        servidor: []
+      }
     });
     
     console.log('✅ Dados resetados para padrão');

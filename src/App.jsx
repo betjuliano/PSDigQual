@@ -863,7 +863,6 @@ function App() {
                 )}
               </div>
             </section>
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
           </div>
         );
 

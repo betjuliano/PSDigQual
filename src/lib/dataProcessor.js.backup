@@ -33,12 +33,7 @@ const TRANSPARENCY_QUESTION_MAPPING = {
   'O Portal é fácil de usar.': 'QS3',
   'É fácil localizar os dados e as informações no Portal.': 'QS8',
   'A navegação pelo Portal é intuitiva.': 'QS9',
-  'O Portal funciona sem falhas.': 'QS1',
-  // Questões adicionais do Base8
-  'As informações são fáceis de entender.': 'QI1',
-  'As informações são precisas.': 'QI2',
-  'As informações disponibilizadas estão atualizadas.': 'QI7',
-  'Consigo obter o que preciso no menor tempo possível.': 'QO4'
+  'O Portal funciona sem falhas.': 'QS1'
 };
 
 const QUESTION_MAPPING = {
@@ -83,30 +78,6 @@ const LIKERT_MAPPING = {
   'Concordo totalmente': 5
 };
 
-<<<<<<< HEAD
-// Função para detectar encoding e processar CSV
-export function processCSVData(csvText, encoding = 'utf-8') {
-  try {
-    // Se o texto contém caracteres estranhos, pode ser latin-1
-    if (csvText.includes('�') || csvText.includes('Ã')) {
-      console.log('Detectado possível encoding latin-1, tentando reprocessar...');
-      // Em um ambiente real, aqui faria a conversão de encoding
-      // Por enquanto, vamos limpar os caracteres problemáticos
-      csvText = csvText
-        .replace(/Ã¡/g, 'á')
-        .replace(/Ã©/g, 'é')
-        .replace(/Ã­/g, 'í')
-        .replace(/Ã³/g, 'ó')
-        .replace(/Ãº/g, 'ú')
-        .replace(/Ã§/g, 'ç')
-        .replace(/Ã /g, 'à')
-        .replace(/Ã¢/g, 'â')
-        .replace(/Ã£/g, 'ã')
-        .replace(/Ãª/g, 'ê')
-        .replace(/Ã´/g, 'ô')
-        .replace(/Ã¨/g, 'è')
-        .replace(/�/g, '');
-=======
 // Faixas etárias utilizadas na aplicação
 const AGE_RANGE_LABELS = [
   'Até 20 anos',
@@ -1076,7 +1047,6 @@ export function processCSVData(csvText, options = {}) {
       }
     } else {
       console.log('✅ Nenhum problema de encoding detectado');
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
     }
 
     const lines = processedText.trim().split('\n');
@@ -1084,9 +1054,9 @@ export function processCSVData(csvText, options = {}) {
       throw new Error('Arquivo CSV deve ter pelo menos 2 linhas (cabeçalho + dados)');
     }
 
+    console.log(`📄 Total de linhas encontradas: ${lines.length}`);
+
     const headers = lines[0].split(';').map(h => h.trim());
-<<<<<<< HEAD
-=======
     console.log(`📋 Cabeçalhos detectados: ${headers.length}`);
     
     // VALIDAÇÃO RIGOROSA DOS CABEÇALHOS
@@ -1121,8 +1091,8 @@ export function processCSVData(csvText, options = {}) {
 
     console.log(`❓ Questões detectadas: ${questionHeaders.length}`);
 
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
     const data = [];
+    const invalidRows = [];
 
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -1132,15 +1102,11 @@ export function processCSVData(csvText, options = {}) {
       if (values.length !== headers.length) continue;
 
       const row = {};
-<<<<<<< HEAD
-      headers.forEach((header, index) => {
-=======
       let validResponses = 0;
       let totalQuestions = 0;
       
       headerMetadata.forEach((meta, index) => {
         const { header, questionCode, profileCategory } = meta;
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
         const value = values[index];
 
         if (profileCategory) {
@@ -1148,22 +1114,6 @@ export function processCSVData(csvText, options = {}) {
           assignProfileValue(row, profileCategory, value);
           return;
         }
-<<<<<<< HEAD
-        // Verificar se é questão Likert
-        else if (QUESTION_MAPPING[header]) {
-          const questionCode = QUESTION_MAPPING[header];
-          const numericValue = LIKERT_MAPPING[value] || 3;
-          row[questionCode] = numericValue;
-        }
-      });
-
-      // Só adicionar se tiver pelo menos uma questão Likert
-      const hasLikertQuestions = Object.keys(row).some(key => 
-        key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO') || key.startsWith('QT')
-      );
-      
-      if (hasLikertQuestions) {
-=======
 
         if (!questionCode) {
           return;
@@ -1182,24 +1132,26 @@ export function processCSVData(csvText, options = {}) {
         }
       });
 
-      // VALIDAÇÃO DA LINHA - MAIS PERMISSIVA
+      // VALIDAÇÃO DA LINHA
       const responseRate = totalQuestions > 0 ? (validResponses / totalQuestions) : 0;
       
-      // Verificar se tem pelo menos uma questão válida
-      const hasValidQuestions = Object.keys(row).some(key => 
-        (key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO') || key.startsWith('QT')) &&
-        row[key] !== null && row[key] !== undefined && row[key] !== ''
+      // Só adicionar se tiver pelo menos uma questão Likert e taxa de resposta >= 30%
+      const hasLikertQuestions = Object.keys(row).some(key => 
+        key.startsWith('QS') || key.startsWith('QI') || key.startsWith('QO') || key.startsWith('QT')
       );
       
-      // Aceitar linha se tiver pelo menos uma questão válida (taxa mínima de 10%)
-      if (hasValidQuestions && responseRate >= 0.1) {
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
+      if (hasLikertQuestions && responseRate >= 0.3) {
         data.push(row);
+      } else {
+        invalidRows.push({
+          linha: i + 1,
+          respostasValidas: validResponses,
+          totalQuestoes: totalQuestions,
+          taxa: responseRate
+        });
       }
     }
 
-<<<<<<< HEAD
-=======
     console.log(`📊 Processamento concluído:`);
     console.log(`  ✅ Linhas válidas: ${data.length}`);
     console.log(`  ❌ Linhas inválidas: ${invalidRows.length}`);
@@ -1218,7 +1170,6 @@ export function processCSVData(csvText, options = {}) {
       console.warn('⚠️ Nenhum código de questão identificado nos dados');
     }
 
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
     // Determinar tipo baseado nas questões presentes
     const containsTransparencyLabels = headers.some(header => TRANSPARENCY_SPECIFIC_LABELS.has(header));
     const matchesTransparencyCodes = questionCodes.length > 0 &&
@@ -1228,9 +1179,6 @@ export function processCSVData(csvText, options = {}) {
     const type = (containsTransparencyLabels || matchesTransparencyCodes) ? 'transparency' : 'complete';
 
     console.log(`Processados ${data.length} registros do tipo ${type}`);
-<<<<<<< HEAD
-    return { data, type };
-=======
     
     const result = {
       data,
@@ -1265,9 +1213,8 @@ export function processCSVData(csvText, options = {}) {
     console.log('📊 Metadados do processamento:', result.metadata);
     
     return result;
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
   } catch (error) {
-    console.error('Erro ao processar CSV:', error);
+    console.error('❌ Erro ao processar CSV:', error);
     throw error;
   }
 }
@@ -2252,16 +2199,6 @@ export function extractProfileData(dataset) {
       }
     }
 
-<<<<<<< HEAD
-    // Processar funcionário público
-    const funcionarioKey = Object.keys(row).find(key => 
-      key.toLowerCase().includes('funcionário público') || 
-      key.toLowerCase().includes('funcionario publico')
-    );
-    const funcionarioPublico = row[funcionarioKey];
-    if (funcionarioPublico) {
-      profileData.funcionarioPublico[funcionarioPublico] = (profileData.funcionarioPublico[funcionarioPublico] || 0) + 1;
-=======
     // Processar funcionário público (incluindo variações como servidor público)
     const funcionarioPublico = getProfileValue(row, 'servidor');
     if (funcionarioPublico) {
@@ -2275,7 +2212,6 @@ export function extractProfileData(dataset) {
 
         profileData.funcionarioPublico[label] = (profileData.funcionarioPublico[label] || 0) + 1;
       }
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
     }
   });
 
@@ -2329,14 +2265,105 @@ function getDimensionName(dimension) {
 // Função para obter ações específicas por questão
 function getActionsForQuestion(questionCode) {
   const actions = {
-    // Ações para Qualidade do Sistema
-    'QS1': [
+    // Ações específicas para as 8 questões do Portal da Transparência
+    'QS3': [ // O Portal é fácil de usar
       {
-        title: 'Implementar Monitoramento de Sistema',
-        description: 'Criar sistema de monitoramento em tempo real para detectar e corrigir falhas automaticamente.',
+        title: 'Pesquisa orientada e inteligente',
+        description: 'Implemente uma barra de busca que utilize inteligência artificial para entender a intenção do usuário. Por exemplo, se a pessoa digita "salário do governador", a busca deve direcioná-la diretamente para a página de remuneração de servidores.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Testes de usabilidade com o público',
+        description: 'Realize sessões periódicas de testes (experimentos) com cidadãos de diferentes perfis (idade, familiaridade com tecnologia, etc.). Observe como eles interagem com o portal e use esses dados para refinar a estrutura de navegação.',
+        priority: 'Média'
+      }
+    ],
+    'QS8': [ // É fácil localizar os dados e as informações no Portal
+      {
+        title: 'Categorização clara e padronizada',
+        description: 'Crie um menu principal com categorias lógicas e nomes simples, como "Receitas", "Despesas", "Servidores", "Licitações e Contratos". Dentro de cada categoria, use subcategorias intuitivas.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Mapas de calor e análise de cliques',
+        description: 'Utilize ferramentas de análise de dados para entender quais páginas são mais acessadas e quais links recebem mais cliques. Identifique "pontos de atrito" onde os usuários desistem da navegação.',
+        priority: 'Média'
+      }
+    ],
+    'QS9': [ // A navegação pelo Portal é intuitiva
+      {
+        title: 'Pesquisa orientada e inteligente',
+        description: 'Implemente uma barra de busca que utilize inteligência artificial para entender a intenção do usuário, facilitando a navegação intuitiva.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Testes de usabilidade com o público',
+        description: 'Realize sessões periódicas de testes com cidadãos de diferentes perfis para refinar a estrutura de navegação e torná-la mais intuitiva.',
+        priority: 'Média'
+      }
+    ],
+    'QS1': [ // O Portal funciona sem falhas
+      {
+        title: 'Dashboard de monitoramento em tempo real',
+        description: 'Criar um painel visível para todos os envolvidos mostrando tempo de carregamento, disponibilidade do servidor, taxa de erro e número de usuários ativos em tempo real.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Testes de regressão automatizados',
+        description: 'Criar scripts automatizados para simular o comportamento de usuário real, verificar funcionalidade dos links principais, testar compatibilidade em múltiplos dispositivos e validar integridade dos dados.',
         priority: 'Alta'
       }
     ],
+    'QI1': [ // As informações são fáceis de entender
+      {
+        title: 'Glossário interativo e linguagem simples',
+        description: 'Evite jargões técnicos e termos burocráticos. Crie um glossário interativo onde o usuário pode passar o mouse sobre termos como "Empenho", "Liquidação" e visualizar explicação clara.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Visualização de dados e infográficos',
+        description: 'Apresente dados complexos em formatos visuais, como gráficos de barras, gráficos de pizza e infográficos, tornando a informação mais digerível.',
+        priority: 'Média'
+      }
+    ],
+    'QI2': [ // As informações são precisas
+      {
+        title: 'Processo de conciliação de dados automatizado',
+        description: 'Configure rotinas automatizadas para comparar dados do portal com os sistemas originais. Scripts diários verificam se totais publicados correspondem aos registros dos sistemas financeiros.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Formulário indicativo de erro com rastreamento',
+        description: 'Criar formulário simples com campos "Página com erro", "Qual informação está incorreta?" e "Sugestão de correção", com sistema de protocolo para acompanhamento.',
+        priority: 'Média'
+      }
+    ],
+    'QI7': [ // As informações disponibilizadas estão atualizadas
+      {
+        title: 'Automação da publicação de dados',
+        description: 'Integre o portal de transparência diretamente aos sistemas de gestão do governo para publicação automática dos dados assim que são gerados, eliminando atualização manual.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Exibição da data de atualização',
+        description: 'Em cada relatório, tabela ou conjunto de dados, inclua uma etiqueta clara que mostre a data e a hora da última atualização, gerando confiança no usuário.',
+        priority: 'Média'
+      }
+    ],
+    'QO4': [ // Consigo obter o que preciso no menor tempo possível
+      {
+        title: 'Dashboard de acesso rápido',
+        description: 'Crie uma página inicial com os dados mais acessados (gastos com saúde, salário de servidores, despesas do mês). Dashboard dinâmico que atualiza conforme o uso diário, semanal ou mensal.',
+        priority: 'Alta'
+      },
+      {
+        title: 'Caminhos de navegação guiados',
+        description: 'Para informações complexas, crie um passo a passo visual. Exemplo: "Como encontrar gasto de uma secretaria: Passo 1: Clique em Despesas > Passo 2: Selecione Órgãos > Passo 3: Escolha a secretaria".',
+        priority: 'Média'
+      }
+    ],
+    
+    // Ações genéricas para outras questões
     'QS2': [
       {
         title: 'Melhorar Acessibilidade',
@@ -2344,31 +2371,6 @@ function getActionsForQuestion(questionCode) {
         priority: 'Alta'
       }
     ],
-    'QS3': [
-      {
-        title: 'Simplificar Interface',
-        description: 'Redesenhar a interface para torná-la mais intuitiva e fácil de usar.',
-        priority: 'Alta'
-      }
-    ],
-    
-    // Ações para Qualidade da Informação
-    'QI1': [
-      {
-        title: 'Revisar Linguagem',
-        description: 'Simplificar a linguagem utilizada nas informações para torná-las mais claras.',
-        priority: 'Média'
-      }
-    ],
-    'QI2': [
-      {
-        title: 'Validar Informações',
-        description: 'Implementar processo de validação contínua das informações disponibilizadas.',
-        priority: 'Alta'
-      }
-    ],
-    
-    // Ações para Qualidade da Operação
     'QO1': [
       {
         title: 'Melhorar Suporte Técnico',
@@ -2394,8 +2396,6 @@ function getActionsForQuestion(questionCode) {
   ];
 }
 
-<<<<<<< HEAD
-=======
 export function filterDataByDemographics(dataset, demographicFilters) {
   if (!dataset) {
     return dataset;
@@ -2481,4 +2481,257 @@ export function filterDataByDemographics(dataset, demographicFilters) {
   };
 }
 
->>>>>>> d520d7822fd60c11d3048a52078d74002fe285b7
+
+  
+  try {
+    let recoveredText = '';
+    let recoveryMethod = '';
+    
+    switch (mechanism) {
+      case 'character-replacement':
+        recoveredText = await attemptCharacterReplacementRecovery(file, baseEncoding);
+        recoveryMethod = 'Substituição agressiva de caracteres';
+        break;
+        
+      case 'byte-mapping':
+        recoveredText = await attemptByteMappingRecovery(file);
+        recoveryMethod = 'Mapeamento direto de bytes';
+        break;
+        
+      case 'smart-quotes-fix':
+        recoveredText = await attemptSmartQuotesRecovery(file, baseEncoding);
+        recoveryMethod = 'Correção de aspas inteligentes';
+        break;
+        
+      case 'partial-recovery':
+        recoveredText = await attemptPartialRecovery(file, originalAttempt);
+        recoveryMethod = 'Recuperação parcial de dados';
+        break;
+        
+      case 'aggressive-cleanup':
+      default:
+        recoveredText = await attemptAggressiveCleanupRecovery(file);
+        recoveryMethod = 'Limpeza agressiva completa';
+        break;
+    }
+    
+    if (!recoveredText) {
+      throw new Error(`Mecanismo ${mechanism} não produziu texto válido`);
+    }
+    
+    console.log(`🔧 Texto recuperado usando: ${recoveryMethod}`);
+    console.log(`📏 Tamanho do texto recuperado: ${recoveredText.length} caracteres`);
+    
+    // Apply enhanced character replacements to recovered text
+    const replacementResult = applyCharacterReplacements(recoveredText, { verbose: false });
+    const finalText = replacementResult.text;
+    
+    // Calculate quality of recovered text
+    const qualityAnalysis = calculateTextQuality(finalText);
+    const textQuality = typeof qualityAnalysis === 'object' ? qualityAnalysis.score : qualityAnalysis;
+    
+    console.log(`📊 Qualidade do texto recuperado: ${(textQuality * 100).toFixed(1)}%`);
+    
+    // Try to process the recovered text
+    const result = processCSVData(finalText, {
+      fileName: file.name,
+      encoding: `${baseEncoding} (${recoveryMethod})`,
+      textQuality,
+      recoveryMethod: mechanism,
+      characterReplacements: replacementResult.replacementCount
+    });
+    
+    if (result && result.data && result.data.length > 0) {
+      console.log(`✅ Recuperação ${mechanism} bem-sucedida: ${result.data.length} registros!`);
+      
+      // Add recovery metadata
+      result.metadata.recoveryMethod = mechanism;
+      result.metadata.recoveryDescription = recoveryMethod;
+      result.metadata.baseEncoding = baseEncoding;
+      result.metadata.isRecovered = true;
+      
+      return result;
+    }
+    
+    throw new Error(`Recuperação ${mechanism} não produziu dados válidos`);
+    
+  } catch (error) {
+    console.error(`❌ Falha na recuperação ${mechanism}:`, error.message);
+    throw error;
+  }
+}
+
+// Character replacement recovery - focuses on fixing encoding issues
+async function attemptCharacterReplacementRecovery(file, baseEncoding) {
+  const text = await readFileAsText(file, baseEncoding);
+  const replacementResult = applyCharacterReplacements(text, { verbose: true });
+  return replacementResult.text;
+}
+
+// Byte mapping recovery - reads file as binary and maps bytes to characters
+async function attemptByteMappingRecovery(file) {
+  const arrayBuffer = await readFileAsArrayBuffer(file);
+  const uint8Array = new Uint8Array(arrayBuffer);
+  
+  let text = '';
+  for (let i = 0; i < uint8Array.length; i++) {
+    const byte = uint8Array[i];
+    
+    // Handle different byte ranges
+    if (byte >= 32 && byte <= 126) {
+      // Standard ASCII
+      text += String.fromCharCode(byte);
+    } else if (byte >= 128 && byte <= 255) {
+      // Extended ASCII - map to Portuguese characters
+      const char = mapExtendedAscii(byte);
+      text += char;
+    } else if (byte === 10 || byte === 13) {
+      // Line breaks
+      text += String.fromCharCode(byte);
+    } else if (byte === 9) {
+      // Tab character
+      text += '\t';
+    }
+    // Skip other control characters
+  }
+  
+  return text;
+}
+
+// Smart quotes recovery - specifically handles Windows-1252 smart quotes
+async function attemptSmartQuotesRecovery(file, baseEncoding) {
+  let text = await readFileAsText(file, baseEncoding);
+  
+  // Fix Windows-1252 smart quotes and special characters
+  const smartQuoteFixes = {
+    'â€™': "'", 'â€œ': '"', 'â€\u009d': '"', 'â€"': '–', 'â€"': '—',
+    'â€¦': '...', 'â€¢': '•', 'Â': '', 'â€': '"',
+    // Additional Windows-1252 fixes
+    'Ã¢â‚¬â„¢': "'", 'Ã¢â‚¬Å"': '"', 'Ã¢â‚¬\u009d': '"',
+    'Ã¢â‚¬â€œ': '–', 'Ã¢â‚¬â€"': '—'
+  };
+  
+  Object.entries(smartQuoteFixes).forEach(([corrupted, correct]) => {
+    text = text.replace(new RegExp(escapeRegExp(corrupted), 'g'), correct);
+  });
+  
+  return text;
+}
+
+// Partial recovery - attempts to salvage readable portions of the file
+async function attemptPartialRecovery(file, originalAttempt) {
+  const text = await readFileAsText(file, 'UTF-8');
+  const lines = text.split('\n');
+  
+  // Try to identify and keep lines that look like valid CSV data
+  const validLines = [];
+  const semicolonThreshold = 3; // Minimum semicolons per line for CSV
+  
+  for (const line of lines) {
+    const semicolonCount = (line.match(/;/g) || []).length;
+    const hasValidChars = /[a-zA-Z0-9]/.test(line);
+    const notTooCorrupted = (line.match(/[�\ufffd]/g) || []).length < line.length * 0.5;
+    
+    if (semicolonCount >= semicolonThreshold && hasValidChars && notTooCorrupted) {
+      validLines.push(line);
+    }
+  }
+  
+  if (validLines.length < 2) {
+    throw new Error('Não foi possível recuperar linhas válidas suficientes');
+  }
+  
+  return validLines.join('\n');
+}
+
+// Aggressive cleanup recovery - most comprehensive cleanup approach
+async function attemptAggressiveCleanupRecovery(file) {
+  const arrayBuffer = await readFileAsArrayBuffer(file);
+  const uint8Array = new Uint8Array(arrayBuffer);
+  
+  let text = '';
+  let consecutiveInvalidBytes = 0;
+  const maxConsecutiveInvalid = 10;
+  
+  for (let i = 0; i < uint8Array.length; i++) {
+    const byte = uint8Array[i];
+    
+    // Handle different byte ranges with aggressive filtering
+    if (byte >= 32 && byte <= 126) {
+      // Standard ASCII - always include
+      text += String.fromCharCode(byte);
+      consecutiveInvalidBytes = 0;
+    } else if (byte >= 128 && byte <= 255) {
+      // Extended ASCII - try to map, but be selective
+      const char = mapExtendedAscii(byte);
+      if (char && char !== String.fromCharCode(byte)) {
+        text += char;
+        consecutiveInvalidBytes = 0;
+      } else {
+        consecutiveInvalidBytes++;
+      }
+    } else if (byte === 10 || byte === 13) {
+      // Line breaks - always include
+      text += String.fromCharCode(byte);
+      consecutiveInvalidBytes = 0;
+    } else if (byte === 9) {
+      // Tab character - include
+      text += '\t';
+      consecutiveInvalidBytes = 0;
+    } else {
+      consecutiveInvalidBytes++;
+    }
+    
+    // If we encounter too many consecutive invalid bytes, skip ahead
+    if (consecutiveInvalidBytes > maxConsecutiveInvalid) {
+      // Skip ahead to find next valid sequence
+      while (i < uint8Array.length && consecutiveInvalidBytes > 0) {
+        i++;
+        const nextByte = uint8Array[i];
+        if (nextByte >= 32 && nextByte <= 126) {
+          consecutiveInvalidBytes = 0;
+          i--; // Back up one to process this byte normally
+          break;
+        }
+        consecutiveInvalidBytes--;
+      }
+    }
+  }
+  
+  // Additional cleanup passes
+  text = text
+    // Remove sequences of replacement characters
+    .replace(/[�\ufffd]{2,}/g, '')
+    // Clean up excessive whitespace
+    .replace(/\s{4,}/g, '   ')
+    // Remove lines that are mostly corrupted
+    .split('\n')
+    .filter(line => {
+      const corruptedChars = (line.match(/[�\ufffd\u0000-\u001f]/g) || []).length;
+      return line.length === 0 || corruptedChars < line.length * 0.7;
+    })
+    .join('\n');
+  
+  return text;
+}
+
+// Map extended ASCII bytes to Portuguese characters
+function mapExtendedAscii(byte) {
+  const extendedAsciiMap = {
+    128: 'Ç', 129: 'ü', 130: 'é', 131: 'â', 132: 'ä', 133: 'à', 134: 'å', 135: 'ç',
+    136: 'ê', 137: 'ë', 138: 'è', 139: 'ï', 140: 'î', 141: 'ì', 142: 'Ä', 143: 'Å',
+    144: 'É', 145: 'æ', 146: 'Æ', 147: 'ô', 148: 'ö', 149: 'ò', 150: 'û', 151: 'ù',
+    152: 'ÿ', 153: 'Ö', 154: 'Ü', 155: '¢', 156: '£', 157: '¥', 158: '₧', 159: 'ƒ',
+    160: 'á', 161: 'í', 162: 'ó', 163: 'ú', 164: 'ñ', 165: 'Ñ', 166: 'ª', 167: 'º',
+    168: '¿', 169: '⌐', 170: '¬', 171: '½', 172: '¼', 173: '¡', 174: '«', 175: '»',
+    224: 'α', 225: 'ß', 226: 'Γ', 227: 'π', 228: 'Σ', 229: 'σ', 230: 'µ', 231: 'τ',
+    232: 'Φ', 233: 'Θ', 234: 'Ω', 235: 'δ', 236: '∞', 237: 'φ', 238: 'ε', 239: '∩'
+  };
+  
+  return extendedAsciiMap[byte] || String.fromCharCode(byte);
+}
+
+// Helper function to escape special regex characters
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

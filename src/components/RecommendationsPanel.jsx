@@ -31,10 +31,10 @@ export function RecommendationsPanel({ recommendations }) {
         <div className="text-center py-8">
           <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
           <p className="text-gray-600">
-            Parabéns! Não há questões críticas que necessitem de ações imediatas.
+            Parabéns! Não há questões abaixo das metas definidas que necessitem de ações imediatas.
           </p>
           <p className="text-sm text-gray-500 mt-2">
-            Todas as questões estão com média igual ou superior a 3.0.
+            Todas as questões estão com média igual ou superior a 3.0 e a diferença para a meta é inferior a 0.5 ponto.
           </p>
         </div>
       </div>
@@ -62,11 +62,21 @@ export function RecommendationsPanel({ recommendations }) {
                 <div className="flex items-center mb-2">
                   <span className="font-medium text-gray-900 mr-2">{rec.questionCode}</span>
                   <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded">
-                    Média: {rec.average.toFixed(2)}
+                    Média: {rec.average.toFixed(1)}
                   </span>
                   <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
                     {rec.dimension}
                   </span>
+                  {typeof rec.goal === 'number' && !Number.isNaN(rec.goal) && (
+                    <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                      Meta: {rec.goal.toFixed(1)}
+                    </span>
+                  )}
+                  {typeof rec.gap === 'number' && rec.gap > 0 && (
+                    <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded">
+                      Desvio: {rec.gap.toFixed(1)}
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm text-gray-700 mb-3">{rec.question}</p>
               </div>

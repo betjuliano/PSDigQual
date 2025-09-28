@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, X, Database } from 'lucide-react';
-import { processFileWithEncoding, parseCSV } from '../lib/dataProcessor';
+import { processFileWithMultipleEncodings, parseCSV } from '../lib/dataProcessor';
 
 const FileUpload = ({ onDataProcessed, onReset }) => {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -63,7 +63,7 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
       const text = await response.text();
       console.log(`📄 Arquivo carregado, tamanho: ${text.length} caracteres`);
       
-      const result = parseCSV(text);
+      const result = parseCSV(text, { fileName: fileName });
       console.log(`📊 Dados processados: ${result.data.length} registros`);
       
       setProcessingDetails({
@@ -85,40 +85,75 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
       console.log(`❓ Colunas de questões detectadas: ${questionColumns.length}`);
       
       // Detecção baseada em múltiplos critérios
-      let isTransparency = false;
+      let detectedType = 'base20'; // padrão
       
       // Critério 1: Nome do arquivo
-      if (fileName.includes('base8') || fileName.includes('transparency')) {
-        isTransparency = true;
-        console.log(`✅ Tipo detectado por nome do arquivo: Transparência`);
+      if (fileName.includes('base26') || fileName.includes('completo')) {
+        detectedType = 'base26';
+        console.log(`✅ Tipo detectado por nome do arquivo: Base26`);
+      }
+      else if (fileName.includes('base8') || fileName.includes('8questoes') || fileName.includes('transparency')) {
+        detectedType = 'base8';
+        console.log(`✅ Tipo detectado por nome do arquivo: Base8`);
+      }
+      else if (fileName.includes('base20') || fileName.includes('20questoes')) {
+        detectedType = 'base20';
+        console.log(`✅ Tipo detectado por nome do arquivo: Base20`);
       }
       
       // Critério 2: Número de colunas de questões (mais robusto)
       else if (questionColumns.length <= 12) { // 8 questões + 4 demográficas
-        isTransparency = true;
-        console.log(`✅ Tipo detectado por número de colunas: Transparência (${questionColumns.length} colunas)`);
+        detectedType = 'base8';
+        console.log(`✅ Tipo detectado por número de colunas: Base8 (${questionColumns.length} colunas)`);
+      }
+      else if (questionColumns.length >= 25) { // 26 questões + demográficas
+        detectedType = 'base26';
+        console.log(`✅ Tipo detectado por número de colunas: Base26 (${questionColumns.length} colunas)`);
+      }
+      else if (questionColumns.length >= 20) { // 20 questões + demográficas
+        detectedType = 'base20';
+        console.log(`✅ Tipo detectado por número de colunas: Base20 (${questionColumns.length} colunas)`);
       }
       
-      // Critério 3: Verificar se contém questões específicas do questionário completo
+      // Critério 3: Verificar questões específicas
       else {
-        const hasCompleteQuestions = headers.some(header => 
+        const hasBase26Questions = headers.some(header => 
           header && (
             header.includes('recursos de acessibilidade') ||
             header.includes('políticas de privacidade') ||
-            header.includes('suporte técnico')
+            header.includes('suporte técnico') ||
+            header.includes('prazo de entrega') ||
+            header.includes('taxas cobradas')
           )
         );
         
-        if (hasCompleteQuestions) {
-          isTransparency = false;
-          console.log(`✅ Tipo detectado por questões específicas: Completo`);
+        const hasTransparencyQuestions = headers.some(header =>
+          header && (
+            header.includes('Portal') ||
+            header.includes('transparência')
+          )
+        );
+        
+        if (hasBase26Questions) {
+          detectedType = 'base26';
+          console.log(`✅ Tipo detectado por questões específicas: Base26`);
+        } else if (hasTransparencyQuestions) {
+          detectedType = 'base8';
+          console.log(`✅ Tipo detectado por questões específicas: Base8`);
         } else {
-          isTransparency = questionColumns.length <= 12;
-          console.log(`✅ Tipo detectado por fallback: ${isTransparency ? 'Transparência' : 'Completo'}`);
+          detectedType = questionColumns.length <= 12 ? 'base8' : 'base20';
+          console.log(`✅ Tipo detectado por fallback: ${detectedType}`);
         }
       }
       
-      result.type = isTransparency ? 'transparency' : 'complete';
+      // Manter compatibilidade com sistema anterior
+      if (detectedType === 'base8') {
+        result.type = 'transparency';
+      } else if (detectedType === 'base20') {
+        result.type = 'complete';
+      } else {
+        result.type = detectedType;
+      }
       
       console.log(`🎯 Tipo final determinado: ${result.type}`);
       console.log(`📈 Resumo dos dados:`, {
@@ -129,9 +164,14 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
       });
 
       // Determinar tipo de questionário
-      const questionarioType = result.type === 'transparency' ? 
-        'Portal da Transparência (8 questões)' : 
-        'Questionário Completo (20+ questões)';
+      let questionarioType;
+      if (result.type === 'base26') {
+        questionarioType = 'Base26 (26 questões)';
+      } else if (result.type === 'transparency' || detectedType === 'base8') {
+        questionarioType = 'Base8 - Portal da Transparência (8 questões)';
+      } else {
+        questionarioType = 'Base20 - Questionário Completo (20 questões)';
+      }
 
       // LOGS DETALHADOS PARA DEBUG
       console.log('📊 RESUMO FINAL DO CARREGAMENTO:');
@@ -163,11 +203,14 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
         details: {
           records: result.data.length,
           type: questionarioType,
-          encoding: 'UTF-8',
+          encoding: result.metadata?.encoding || 'UTF-8',
           source: 'Arquivo base do projeto',
           columns: headers.length,
           questionCodes: mappedQuestions.length,
           invalidRows: result.invalidRows || 0,
+          characterReplacements: result.metadata?.characterReplacements || 0,
+          textQuality: result.metadata?.textQuality ? 
+            `${Math.round(result.metadata.textQuality * 100)}%` : '100%',
           validationRate: result.validationSummary ? 
             `${Math.round((result.validationSummary.validLines / result.validationSummary.totalLines) * 100)}%` : 
             'N/A'
@@ -212,21 +255,28 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
     });
 
     try {
-      // Tentar processar com diferentes encodings
+      // Enhanced multi-encoding processing
       setProcessingDetails({
         step: 'Detectando codificação...',
-        progress: 50
+        progress: 25
       });
 
-      const result = await processFileWithEncoding(file);
+      const result = await processFileWithMultipleEncodings(file);
       
       setProcessingDetails({
-        step: 'Processando dados...',
-        progress: 75
+        step: 'Validando dados...',
+        progress: 60
       });
 
       // Simular um pequeno delay para mostrar o progresso
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      setProcessingDetails({
+        step: 'Processando questões...',
+        progress: 80
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       setProcessingDetails({
         step: 'Finalizando...',
@@ -234,18 +284,33 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
       });
 
       // Determinar tipo de questionário
-      const questionarioType = result.type === 'transparency' ? 
-        'Portal da Transparência (8 questões)' : 
-        'Questionário Completo (20+ questões)';
+      let questionarioType;
+      if (result.type === 'base26') {
+        questionarioType = 'Base26 (26 questões)';
+      } else if (result.type === 'transparency') {
+        questionarioType = 'Base8 - Portal da Transparência (8 questões)';
+      } else {
+        questionarioType = 'Base20 - Questionário Completo (20 questões)';
+      }
 
+      // Enhanced success message with detailed processing info
       setUploadStatus({
         type: 'success',
         message: `Arquivo processado com sucesso! Identificado: ${questionarioType}`,
         details: {
           records: result.data.length,
           type: questionarioType,
-          encoding: 'Detectado automaticamente',
-          source: 'Upload do usuário'
+          encoding: result.metadata?.encoding || 'Detectado automaticamente',
+          source: 'Upload do usuário',
+          columns: result.headers?.length || 0,
+          questionCodes: result.questionCodes?.length || 0,
+          invalidRows: result.invalidRows || 0,
+          characterReplacements: result.metadata?.characterReplacements || 0,
+          textQuality: result.metadata?.textQuality ? 
+            `${Math.round(result.metadata.textQuality * 100)}%` : 'N/A',
+          validationRate: result.validationSummary ? 
+            `${Math.round((result.validationSummary.validLines / result.validationSummary.totalLines) * 100)}%` : 
+            'N/A'
         }
       });
 
@@ -286,12 +351,20 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
         <h4 className="font-medium text-blue-800 mb-3">Carregar Dados de Exemplo:</h4>
         <div className="flex flex-wrap gap-3">
           <button
+            onClick={() => handleLoadBaseFile('baseKelm.csv')}
+            disabled={isProcessing}
+            className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <Database className="w-4 h-4 mr-2" />
+            Base26 (26 questões)
+          </button>
+          <button
             onClick={() => handleLoadBaseFile('base20.csv')}
             disabled={isProcessing}
             className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Database className="w-4 h-4 mr-2" />
-            Questionário Completo (20 questões)
+            Base20 (20 questões)
           </button>
           <button
             onClick={() => handleLoadBaseFile('base8.csv')}
@@ -299,7 +372,15 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
             className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Database className="w-4 h-4 mr-2" />
-            Portal Transparência (8 questões)
+            Base8 (8 questões)
+          </button>
+          <button
+            onClick={() => handleLoadBaseFile('basetransp.csv')}
+            disabled={isProcessing}
+            className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <Database className="w-4 h-4 mr-2" />
+            Base Transparência
           </button>
         </div>
         <p className="text-sm text-blue-700 mt-2">
@@ -393,6 +474,24 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
                       <p>• Tipo: {uploadStatus.details.type}</p>
                       <p>• Codificação: {uploadStatus.details.encoding}</p>
                       <p>• Origem: {uploadStatus.details.source}</p>
+                      {uploadStatus.details.columns && (
+                        <p>• Total de colunas: {uploadStatus.details.columns}</p>
+                      )}
+                      {uploadStatus.details.questionCodes && (
+                        <p>• Questões mapeadas: {uploadStatus.details.questionCodes}</p>
+                      )}
+                      {uploadStatus.details.invalidRows > 0 && (
+                        <p>• Linhas inválidas removidas: {uploadStatus.details.invalidRows}</p>
+                      )}
+                      {uploadStatus.details.characterReplacements > 0 && (
+                        <p>• Caracteres corrigidos: {uploadStatus.details.characterReplacements}</p>
+                      )}
+                      {uploadStatus.details.textQuality && (
+                        <p>• Qualidade do texto: {uploadStatus.details.textQuality}</p>
+                      )}
+                      {uploadStatus.details.validationRate && (
+                        <p>• Taxa de validação: {uploadStatus.details.validationRate}</p>
+                      )}
                     </div>
                   ) : (
                     <p>• {uploadStatus.details.suggestion}</p>
@@ -414,12 +513,13 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
       <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
         <h4 className="font-medium text-gray-800 mb-2">Instruções:</h4>
         <ul className="text-sm text-gray-700 space-y-1">
-          <li>• <strong>Dados de exemplo:</strong> Use os botões azuis acima para carregar dados pré-configurados</li>
-          <li>• <strong>Upload personalizado:</strong> Aceita arquivos CSV com questionários de 8 ou 20+ questões</li>
+          <li>• <strong>Dados de exemplo:</strong> Use os botões coloridos acima para carregar dados pré-configurados</li>
+          <li>• <strong>Upload personalizado:</strong> Aceita arquivos CSV com questionários de 8, 20 ou 26 questões</li>
           <li>• <strong>Identificação automática:</strong> O sistema detecta o tipo de questionário automaticamente</li>
           <li>• <strong>Conversão Likert:</strong> Respostas são convertidas para escala numérica (1-5)</li>
           <li>• <strong>Limpeza automática:</strong> Linhas em branco são removidas automaticamente</li>
           <li>• <strong>Múltiplos encodings:</strong> Suporte para UTF-8 e Latin-1</li>
+          <li>• <strong>Tipos suportados:</strong> Base26 (26 questões), Base20 (20 questões), Base8 (8 questões)</li>
         </ul>
       </div>
 

@@ -1097,6 +1097,7 @@ export function processCSVData(csvText, options = {}) {
     console.log(`❓ Questões detectadas: ${questionHeaders.length}`);
 
     const data = [];
+    const invalidRows = [];
 
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -1148,6 +1149,12 @@ export function processCSVData(csvText, options = {}) {
       // Aceitar linha se tiver pelo menos uma questão válida (taxa mínima de 10%)
       if (hasValidQuestions && responseRate >= 0.1) {
         data.push(row);
+      } else {
+        invalidRows.push({
+          lineNumber: i + 1,
+          reason: !hasValidQuestions ? 'Nenhuma questão válida' : 'Taxa de resposta muito baixa',
+          responseRate: Math.round(responseRate * 100)
+        });
       }
     }
 

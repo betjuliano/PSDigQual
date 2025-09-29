@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { jsPDF } from 'jspdf';
 import { useData } from './hooks/useData';
 import { Sidebar } from './components/Sidebar';
 import { KPICard } from './components/KPICard';
@@ -351,6 +352,9 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [expandedCritical, setExpandedCritical] = useState(null);
   const [expandedPositive, setExpandedPositive] = useState(null);
+  const [selectedRadarQuestion, setSelectedRadarQuestion] = useState(null);
+  const [improvementPlans, setImprovementPlans] = useState({});
+  const [showPlanModal, setShowPlanModal] = useState(null);
   const { 
     data, 
     analysis, 
@@ -370,7 +374,460 @@ function App() {
     }
   };
 
-  const tabs = [
+  // Função para lidar com cliques no radar chart
+  const handleRadarQuestionClick = (questionCode) => {
+    setSelectedRadarQuestion(questionCode);
+  };
+
+  // Carregar planos de melhoria do localStorage
+  React.useEffect(() => {
+    const savedPlans = localStorage.getItem('psdigqual-improvement-plans');
+    if (savedPlans) {
+      setImprovementPlans(JSON.parse(savedPlans));
+    }
+  }, []);
+
+  // Salvar planos de melhoria no localStorage
+  const saveImprovementPlans = (plans) => {
+    setImprovementPlans(plans);
+    localStorage.setItem('psdigqual-improvement-plans', JSON.stringify(plans));
+  };
+
+  // Função para iniciar plano de melhoria
+  const handleStartImprovementPlan = (questionCode) => {
+    setShowPlanModal(questionCode);
+  };
+
+  // Função para salvar seleções do plano
+  const handleSavePlanSelections = (questionCode, selections) => {
+    const newPlans = {
+      ...improvementPlans,
+      [questionCode]: {
+        ...selections,
+        createdAt: new Date().toISOString(),
+        questionData: analysis.questionAverages[questionCode]
+      }
+    };
+    saveImprovementPlans(newPlans);
+    setShowPlanModal(null);
+  };
+
+  // Função para gerar PDF do plano de melhoria
+  const generatePDF = () => {
+    const savedPlans = Object.keys(improvementPlans);
+    
+    if (savedPlans.length === 0) {
+      alert('Nenhum plano de melhoria foi criado ainda. Clique em "Iniciar Plano de Melhoria" em uma ou mais questões primeiro.');
+      return;
+    }
+
+    try {
+      // Criar novo documento PDF
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      const maxWidth = pageWidth - 2 * margin;
+      let yPosition = margin;
+
+      // Função para adicionar nova página se necessário
+      const checkPageBreak = (requiredHeight = 20) => {
+        if (yPosition + requiredHeight > pageHeight - margin) {
+          doc.addPage();
+          yPosition = margin;
+        }
+      };
+
+      // Função para quebrar texto em linhas
+      const splitText = (text, maxWidth, fontSize = 10) => {
+        doc.setFontSize(fontSize);
+        return doc.splitTextToSize(text, maxWidth);
+      };
+
+      // Cabeçalho do documento
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Plano PsDigQual - Plano de Melhoria', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 15;
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      const currentDate = new Date();
+      const dateText = `Gerado em: ${currentDate.toLocaleDateString('pt-BR')} às ${currentDate.toLocaleTimeString('pt-BR')}`;
+      doc.text(dateText, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 10;
+
+      const totalText = `Total de questões com plano: ${savedPlans.length}`;
+      doc.text(totalText, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 20;
+
+      // Linha separadora
+      doc.setDrawColor(37, 99, 235); // Azul
+      doc.setLineWidth(1);
+      doc.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 20;
+
+      // Processar cada questão
+      savedPlans.forEach((questionCode, index) => {
+        const plan = improvementPlans[questionCode];
+        const recommendation = QUESTION_RECOMMENDATIONS[questionCode];
+        const questionData = plan.questionData;
+
+        checkPageBreak(60);
+
+        // Título da questão
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(55, 65, 81); // Cinza escuro
+        doc.text(`Questão ${questionCode}`, margin, yPosition);
+        yPosition += 10;
+
+        // Título da recomendação
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        const titleLines = splitText(recommendation?.title || 'Título não disponível', maxWidth, 12);
+        doc.text(titleLines, margin, yPosition);
+        yPosition += titleLines.length * 6 + 10;
+
+        // Métricas atuais
+        checkPageBreak(30);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(75, 85, 99);
+        doc.text('Métricas Atuais', margin, yPosition);
+        yPosition += 8;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        
+        const metrics = [
+          `Média atual: ${questionData?.average?.toFixed(2) || 'N/A'}`,
+          `Total de respostas: ${questionData?.count || 'N/A'}`,
+          `Impacto: ${recommendation?.impact || 'N/A'}`
+        ];
+        
+        metrics.forEach(metric => {
+          doc.text(`• ${metric}`, margin + 5, yPosition);
+          yPosition += 6;
+        });
+        yPosition += 10;
+
+        // Recomendações estratégicas
+        if (recommendation?.recommendations) {
+          checkPageBreak(20);
+          doc.setFontSize(14);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(75, 85, 99);
+          doc.text('Recomendações Estratégicas Selecionadas', margin, yPosition);
+          yPosition += 8;
+
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(0, 0, 0);
+
+          recommendation.recommendations.forEach((rec, index) => {
+            const isSelected = plan.selectedRecommendations?.includes(index);
+            if (isSelected) {
+              checkPageBreak(15);
+              const recLines = splitText(`✓ ${rec}`, maxWidth - 10, 10);
+              doc.text(recLines, margin + 5, yPosition);
+              yPosition += recLines.length * 5 + 3;
+            }
+          });
+          yPosition += 5;
+        }
+
+        // Ações imediatas
+        if (recommendation?.actions) {
+          checkPageBreak(20);
+          doc.setFontSize(14);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(75, 85, 99);
+          doc.text('Ações Imediatas Selecionadas', margin, yPosition);
+          yPosition += 8;
+
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(0, 0, 0);
+
+          recommendation.actions.forEach((action, index) => {
+            const isSelected = plan.selectedActions?.includes(index);
+            if (isSelected) {
+              checkPageBreak(15);
+              const actionLines = splitText(`✓ ${action}`, maxWidth - 10, 10);
+              doc.text(actionLines, margin + 5, yPosition);
+              yPosition += actionLines.length * 5 + 3;
+            }
+          });
+          yPosition += 5;
+        }
+
+        // Data de criação do plano
+        checkPageBreak(10);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(107, 114, 128);
+        const createdDate = new Date(plan.createdAt);
+        const createdText = `Plano criado em: ${createdDate.toLocaleDateString('pt-BR')} às ${createdDate.toLocaleTimeString('pt-BR')}`;
+        doc.text(createdText, margin, yPosition);
+        yPosition += 20;
+
+        // Linha separadora entre questões (exceto na última)
+        if (index < savedPlans.length - 1) {
+          checkPageBreak(10);
+          doc.setDrawColor(229, 231, 235); // Cinza claro
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 15;
+        }
+      });
+
+      // Salvar o PDF
+      const fileName = `plano-psdigqual-${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+      
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert('Erro ao gerar PDF. Tente novamente.');
+    }
+  };
+
+  // Componente Modal para detalhes da questão do radar
+  const RadarQuestionDetailModal = ({ questionCode, questionData, onClose, goals }) => {
+    if (!questionCode || !questionData) return null;
+
+    const recommendation = QUESTION_RECOMMENDATIONS[questionCode];
+    const average = questionData.average || 0;
+    const dimension = questionCode.substring(0, 2);
+    const goal = goals[dimension] || 4.0;
+    
+    const getStatusColor = (avg) => {
+      if (avg >= 4.0) return 'text-green-600';
+      if (avg >= 3.0) return 'text-yellow-600';
+      return 'text-red-600';
+    };
+
+    const getStatusBg = (avg) => {
+      if (avg >= 4.0) return 'bg-green-50 border-green-200';
+      if (avg >= 3.0) return 'bg-yellow-50 border-yellow-200';
+      return 'bg-red-50 border-red-200';
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Info className="w-6 h-6 text-blue-600" />
+                <h3 className="text-xl font-bold text-gray-900">
+                  Detalhes da Questão {questionCode}
+                </h3>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Questão */}
+            {recommendation && (
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-2">Questão</h4>
+                <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">
+                  {recommendation.title}
+                </p>
+              </div>
+            )}
+
+            {/* Métricas */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className={`p-4 rounded-lg text-center border-2 ${getStatusBg(average)}`}>
+                <div className={`text-2xl font-bold ${getStatusColor(average)}`}>{average.toFixed(2)}</div>
+                <div className="text-sm text-gray-600">Média Atual</div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg text-center border-2 border-green-200">
+                <div className="text-2xl font-bold text-green-600">{goal.toFixed(1)}</div>
+                <div className="text-sm text-gray-600">Meta</div>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg text-center border-2 border-purple-200">
+                <div className="text-2xl font-bold text-purple-600">{dimension}</div>
+                <div className="text-sm text-gray-600">Dimensão</div>
+              </div>
+            </div>
+
+            {/* Recomendação */}
+            {recommendation && (
+              <div className="bg-gradient-to-r from-orange-50 to-yellow-50 p-6 rounded-lg border border-orange-200">
+                <div className="flex items-center gap-2 mb-4">
+                  <Lightbulb className="w-5 h-5 text-orange-600" />
+                  <h4 className="text-lg font-semibold text-gray-800">Recomendações</h4>
+                </div>
+                
+                <div className="mb-4">
+                  <h5 className="font-medium text-gray-800 mb-2">Ações Recomendadas:</h5>
+                  <ul className="list-disc list-inside space-y-1">
+                    {recommendation.recommendations.map((rec, index) => (
+                      <li key={index} className="text-gray-700 text-sm">{rec}</li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <div className="mb-4">
+                  <h5 className="font-medium text-gray-800 mb-2">Próximos Passos:</h5>
+                  <ul className="list-disc list-inside space-y-1">
+                    {recommendation.actions.map((action, index) => (
+                      <li key={index} className="text-gray-700 text-sm">{action}</li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <div className="bg-white p-3 rounded border border-orange-200">
+                  <h5 className="font-medium text-gray-800 mb-1">Impacto:</h5>
+                  <p className="text-gray-600 text-sm">{recommendation.impact}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+   };
+
+   // Componente Modal para Plano de Melhoria
+   const ImprovementPlanModal = ({ questionCode, onClose, onSave }) => {
+     if (!questionCode) return null;
+
+     const recommendation = QUESTION_RECOMMENDATIONS[questionCode];
+     const [selectedRecommendations, setSelectedRecommendations] = useState([]);
+     const [selectedActions, setSelectedActions] = useState([]);
+
+     if (!recommendation) return null;
+
+     const handleRecommendationToggle = (index) => {
+       setSelectedRecommendations(prev => 
+         prev.includes(index) 
+           ? prev.filter(i => i !== index)
+           : [...prev, index]
+       );
+     };
+
+     const handleActionToggle = (index) => {
+       setSelectedActions(prev => 
+         prev.includes(index) 
+           ? prev.filter(i => i !== index)
+           : [...prev, index]
+       );
+     };
+
+     const handleSave = () => {
+       onSave(questionCode, {
+         selectedRecommendations,
+         selectedActions,
+         recommendations: selectedRecommendations.map(i => recommendation.recommendations[i]),
+         actions: selectedActions.map(i => recommendation.actions[i]),
+         title: recommendation.title,
+         impact: recommendation.impact
+       });
+     };
+
+     return (
+       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+         <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+           <div className="p-6">
+             {/* Header */}
+             <div className="flex items-center justify-between mb-6">
+               <div className="flex items-center gap-3">
+                 <Target className="w-6 h-6 text-red-600" />
+                 <h3 className="text-xl font-bold text-gray-900">
+                   Plano de Melhoria - {questionCode}
+                 </h3>
+               </div>
+               <button
+                 onClick={onClose}
+                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+               >
+                 <X className="w-5 h-5 text-gray-500" />
+               </button>
+             </div>
+
+             {/* Questão */}
+             <div className="mb-6">
+               <h4 className="text-lg font-semibold text-gray-800 mb-2">Questão</h4>
+               <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">
+                 {recommendation.title}
+               </p>
+             </div>
+
+             {/* Seleção de Recomendações */}
+             <div className="mb-6">
+               <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                 <Lightbulb className="w-5 h-5 text-blue-600" />
+                 Recomendações Estratégicas
+               </h4>
+               <div className="space-y-3">
+                 {recommendation.recommendations.map((rec, index) => (
+                   <label key={index} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition-colors">
+                     <input
+                       type="checkbox"
+                       checked={selectedRecommendations.includes(index)}
+                       onChange={() => handleRecommendationToggle(index)}
+                       className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                     />
+                     <span className="text-gray-700 text-sm">{rec}</span>
+                   </label>
+                 ))}
+               </div>
+             </div>
+
+             {/* Seleção de Ações */}
+             <div className="mb-6">
+               <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                 <Zap className="w-5 h-5 text-green-600" />
+                 Ações Imediatas
+               </h4>
+               <div className="space-y-3">
+                 {recommendation.actions.map((action, index) => (
+                   <label key={index} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-green-50 cursor-pointer transition-colors">
+                     <input
+                       type="checkbox"
+                       checked={selectedActions.includes(index)}
+                       onChange={() => handleActionToggle(index)}
+                       className="mt-1 w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                     />
+                     <span className="text-gray-700 text-sm">{action}</span>
+                   </label>
+                 ))}
+               </div>
+             </div>
+
+             {/* Botões */}
+             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+               <button
+                 onClick={onClose}
+                 className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+               >
+                 Cancelar
+               </button>
+               <button
+                 onClick={handleSave}
+                 disabled={selectedRecommendations.length === 0 && selectedActions.length === 0}
+                 className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+               >
+                 Salvar Seleções
+               </button>
+             </div>
+           </div>
+         </div>
+       </div>
+     );
+   };
+
+   const tabs = [
     { id: 'dashboard', label: 'Dashboard PSDigQual', icon: BarChart3 },
     { id: 'upload', label: 'Envio Respostas', icon: Upload },
     { id: 'profile', label: 'Perfil', icon: Users },
@@ -463,6 +920,7 @@ function App() {
                   </div>
                   <QualityRadarChart 
                     questionAverages={analysis.questionAverages}
+                    onQuestionClick={handleRadarQuestionClick}
                   />
                 </div>
               </div>
@@ -661,7 +1119,10 @@ function App() {
 
                                 {/* Botão de Ação */}
                                 <div className="flex justify-center pt-4 border-t border-gray-200">
-                                  <button className="flex items-center space-x-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                                  <button 
+                                    onClick={() => handleStartImprovementPlan(item.code)}
+                                    className="flex items-center space-x-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                                  >
                                     <Target size={16} />
                                     <span>Iniciar Plano de Melhoria</span>
                                   </button>
@@ -1030,9 +1491,18 @@ function App() {
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-sm text-blue-100">Total de Respostas</div>
-              <div className="text-2xl font-bold">{analysis.totalResponses}</div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => generatePDF()}
+                className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <Target size={16} />
+                <span className="hidden sm:inline">Gerar Plano PsDigQual</span>
+              </button>
+              <div className="text-right">
+                <div className="text-sm text-blue-100">Total de Respostas</div>
+                <div className="text-2xl font-bold">{analysis.totalResponses}</div>
+              </div>
             </div>
           </div>
 
@@ -1103,6 +1573,25 @@ function App() {
           </div>
         </main>
       </div>
+      
+      {/* Modal de Detalhes da Questão do Radar */}
+       {selectedRadarQuestion && (
+         <RadarQuestionDetailModal 
+           questionCode={selectedRadarQuestion}
+           questionData={analysis.questionAverages?.[selectedRadarQuestion]}
+           onClose={() => setSelectedRadarQuestion(null)}
+           goals={filters.goals}
+         />
+       )}
+       
+       {/* Modal de Plano de Melhoria */}
+       {showPlanModal && (
+         <ImprovementPlanModal 
+           questionCode={showPlanModal}
+           onClose={() => setShowPlanModal(null)}
+           onSave={handleSavePlanSelections}
+         />
+       )}
     </div>
   );
 }

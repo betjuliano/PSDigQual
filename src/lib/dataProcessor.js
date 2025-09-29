@@ -1,7 +1,7 @@
 // Mapeamento das questões para códigos
 const COMPLETE_QUESTION_MAPPING = {
   'O sistema funciona sem falhas.': 'QS1',
-  'Os recursos de acessibilidade do sistema são fáceis de encontrar.': 'QS2',
+  'Os recursos de acesso do sistema são fáceis de encontrar.': 'QS2',
   'O sistema é fácil de usar.': 'QS3',
   'O sistema está disponível para uso em qualquer dia e hora.': 'QS4',
   'O desempenho do sistema é satisfatório, independentemente da forma de acesso.': 'QS5',
@@ -38,7 +38,16 @@ const TRANSPARENCY_QUESTION_MAPPING = {
   'As informações são fáceis de entender.': 'QI1',
   'As informações são precisas.': 'QI2',
   'As informações disponibilizadas estão atualizadas.': 'QI7',
-  'Consigo obter o que preciso no menor tempo possível.': 'QO4'
+  'Consigo obter o que preciso no menor tempo possível.': 'QO4',
+  // Versões com problemas de encoding (basetransp.csv)
+  'O Portal � f�cil de usar.': 'QS3',
+  '� f�cil localizar os dados e as informa��es no Portal.': 'QS8',
+  'A navega��o pelo Portal � intuitiva.': 'QS9',
+  'O Portal funciona sem falhas.': 'QS1',
+  'As informa��es s�o f�ceis de entender.': 'QI1',
+  'As informa��es s�o precisas.': 'QI2',
+  'As informa��es disponibilizadas est�o atualizadas.': 'QI7',
+  'Consigo obter o que preciso no menor tempo poss�vel.': 'QO4'
 };
 
 const QUESTION_MAPPING = {

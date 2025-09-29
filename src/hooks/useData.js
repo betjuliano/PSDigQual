@@ -5,7 +5,8 @@ import {
   classifyQuestions,
   extractProfileData,
   getRecommendationsForCriticalQuestions,
-  filterDataByDemographics
+  filterDataByDemographics,
+  processCSVData
 } from '../lib/dataProcessor';
 import { 
   sampleBase26Data, 
@@ -14,6 +15,41 @@ import {
   sampleTransparencyData, 
   sampleBase8Data 
 } from '../data/sampleData';
+
+// Função para carregar dados do CSV
+async function loadTransparencyDataFromCSV() {
+  try {
+    console.log('🔄 Carregando dados do basetransp.csv...');
+    
+    const response = await fetch('/basetransp.csv');
+    if (!response.ok) {
+      throw new Error(`Erro ao carregar CSV: ${response.status}`);
+    }
+    
+    const csvText = await response.text();
+    console.log('📄 Arquivo CSV carregado, processando...');
+    
+    const result = processCSVData(csvText, { type: 'transparency' });
+    
+    if (!result || !result.data || result.data.length === 0) {
+      throw new Error('Nenhum dado válido encontrado no CSV');
+    }
+    
+    // Limitar a 84 respostas conforme solicitado
+    const limitedData = {
+      ...result,
+      data: result.data.slice(0, 84)
+    };
+    
+    console.log(`✅ Dados do CSV processados: ${limitedData.data.length} respostas`);
+    return limitedData;
+    
+  } catch (error) {
+    console.error('❌ Erro ao carregar dados do CSV:', error);
+    console.log('🔄 Usando dados de exemplo como fallback...');
+    return sampleTransparencyData;
+  }
+}
 
 export function useData() {
   const [data, setData] = useState({
@@ -49,22 +85,22 @@ export function useData() {
       try {
         setIsLoading(true);
         
-        // Simular carregamento
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
         console.log('🔄 Carregando dados iniciais do PSDigQual...');
+        
+        // Carregar dados de transparência do CSV
+        const transparencyData = await loadTransparencyDataFromCSV();
         
         setData({
           base26: sampleBase26Data,
           base20: sampleBase20Data,
           complete: sampleCompleteData, // Alias para compatibilidade
-          base8: sampleBase8Data,
-          transparency: sampleTransparencyData, // Alias para compatibilidade
+          base8: transparencyData, // Usando dados do CSV
+          transparency: transparencyData, // Usando dados do CSV
           combined: {
             data: [
               ...sampleBase26Data.data, 
               ...sampleBase20Data.data, 
-              ...sampleBase8Data.data
+              ...transparencyData.data
             ],
             type: 'combined'
           }
@@ -73,7 +109,7 @@ export function useData() {
         console.log('✅ Dados iniciais carregados:', {
           base26: sampleBase26Data.data.length,
           base20: sampleBase20Data.data.length,
-          base8: sampleBase8Data.data.length
+          transparency: transparencyData.data.length
         });
       } catch (error) {
         console.error('❌ Erro ao carregar dados:', error);
@@ -250,38 +286,49 @@ export function useData() {
     }
   };
 
-  const resetToDefault = () => {
+  const resetToDefault = async () => {
     console.log('🔄 Resetando para dados padrão...');
     
-    setData({
-      base26: sampleBase26Data,
-      base20: sampleBase20Data,
-      complete: sampleCompleteData,
-      base8: sampleBase8Data,
-      transparency: sampleTransparencyData,
-      combined: {
-        data: [
-          ...sampleBase26Data.data, 
-          ...sampleBase20Data.data, 
-          ...sampleBase8Data.data
-        ],
-        type: 'combined'
-      }
-    });
-    
-    setFilters({
-      period: 'all',
-      questionnaire: 'all',
-      goals: { QS: 4.0, QO: 4.0, QI: 4.0 },
-      demographic: {
-        sexo: [],
-        idade: [],
-        escolaridade: [],
-        servidor: []
-      }
-    });
-    
-    console.log('✅ Dados resetados para padrão');
+    try {
+      setIsLoading(true);
+      
+      // Recarregar dados de transparência do CSV
+      const transparencyData = await loadTransparencyDataFromCSV();
+      
+      setData({
+        base26: sampleBase26Data,
+        base20: sampleBase20Data,
+        complete: sampleCompleteData,
+        base8: transparencyData,
+        transparency: transparencyData,
+        combined: {
+          data: [
+            ...sampleBase26Data.data, 
+            ...sampleBase20Data.data, 
+            ...transparencyData.data
+          ],
+          type: 'combined'
+        }
+      });
+      
+      setFilters({
+        period: 'all',
+        questionnaire: 'all',
+        goals: { QS: 4.0, QO: 4.0, QI: 4.0 },
+        demographic: {
+          sexo: [],
+          idade: [],
+          escolaridade: [],
+          servidor: []
+        }
+      });
+      
+      console.log('✅ Dados resetados para padrão');
+    } catch (error) {
+      console.error('❌ Erro ao resetar dados:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const updateFilters = (newFilters) => {

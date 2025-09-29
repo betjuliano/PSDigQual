@@ -35,14 +35,8 @@ async function loadTransparencyDataFromCSV() {
       throw new Error('Nenhum dado válido encontrado no CSV');
     }
     
-    // Limitar a 84 respostas conforme solicitado
-    const limitedData = {
-      ...result,
-      data: result.data.slice(0, 84)
-    };
-    
-    console.log(`✅ Dados do CSV processados: ${limitedData.data.length} respostas`);
-    return limitedData;
+    console.log(`✅ Dados do CSV processados: ${result.data.length} respostas`);
+    return result;
     
   } catch (error) {
     console.error('❌ Erro ao carregar dados do CSV:', error);

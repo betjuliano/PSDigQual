@@ -359,7 +359,7 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
             Questionário Completo
           </button>
           <button
-            onClick={() => handleLoadBaseFile('basetransp.csv')}
+            onClick={() => handleLoadBaseFile('basetransp-utf8.csv')}
             disabled={isProcessing}
             className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >

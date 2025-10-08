@@ -21,7 +21,7 @@ async function loadTransparencyDataFromCSV() {
   try {
     console.log('🔄 Carregando dados do basetransp.csv...');
     
-    const response = await fetch('/basetransp.csv');
+    const response = await fetch('/basetransp-utf8.csv');
     if (!response.ok) {
       throw new Error(`Erro ao carregar CSV: ${response.status}`);
     }

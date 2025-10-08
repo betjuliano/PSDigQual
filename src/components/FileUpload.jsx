@@ -50,7 +50,7 @@ const FileUpload = ({ onDataProcessed, onReset }) => {
 
     try {
       // Carregar arquivo da pasta public
-      const response = await fetch(`/${fileName}`);
+      const response = await fetch(`/${fileName}?t=${Date.now()}`);
       if (!response.ok) {
         throw new Error(`Arquivo ${fileName} não encontrado (Status: ${response.status})`);
       }

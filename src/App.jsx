@@ -471,7 +471,7 @@ function App() {
       // Processar cada questão
       savedPlans.forEach((questionCode, index) => {
         const plan = improvementPlans[questionCode];
-        const recommendation = QUESTION_RECOMMENDATIONS[questionCode];
+        const recommendation = DETAILED_RECOMMENDATIONS[questionCode];
         const questionData = plan.questionData;
 
         checkPageBreak(60);
@@ -490,6 +490,15 @@ function App() {
         doc.text(titleLines, margin, yPosition);
         yPosition += titleLines.length * 6 + 10;
 
+        // Dimensão
+        if (recommendation?.dimension) {
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(107, 70, 193); // Roxo
+          doc.text(`Dimensão: ${recommendation.dimension}`, margin, yPosition);
+          yPosition += 10;
+        }
+
         // Métricas atuais
         checkPageBreak(30);
         doc.setFontSize(14);
@@ -505,21 +514,23 @@ function App() {
         const metrics = [
           `Média atual: ${questionData?.average?.toFixed(2) || 'N/A'}`,
           `Total de respostas: ${questionData?.count || 'N/A'}`,
-          `Impacto: ${recommendation?.impact || 'N/A'}`
+          `Impacto: ${recommendation?.impact || 'N/A'} - ${recommendation?.impactDescription || ''}`
         ];
         
         metrics.forEach(metric => {
-          doc.text(`• ${metric}`, margin + 5, yPosition);
-          yPosition += 6;
+          checkPageBreak(8);
+          const metricLines = splitText(`• ${metric}`, maxWidth - 10, 10);
+          doc.text(metricLines, margin + 5, yPosition);
+          yPosition += metricLines.length * 5 + 2;
         });
         yPosition += 10;
 
         // Recomendações estratégicas
-        if (recommendation?.recommendations) {
+        if (recommendation?.strategicActions && plan.recommendations?.length > 0) {
           checkPageBreak(20);
           doc.setFontSize(14);
           doc.setFont('helvetica', 'bold');
-          doc.setTextColor(75, 85, 99);
+          doc.setTextColor(59, 130, 246); // Azul
           doc.text('Recomendações Estratégicas Selecionadas', margin, yPosition);
           yPosition += 8;
 
@@ -527,24 +538,21 @@ function App() {
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(0, 0, 0);
 
-          recommendation.recommendations.forEach((rec, index) => {
-            const isSelected = plan.selectedRecommendations?.includes(index);
-            if (isSelected) {
-              checkPageBreak(15);
-              const recLines = splitText(`✓ ${rec}`, maxWidth - 10, 10);
-              doc.text(recLines, margin + 5, yPosition);
-              yPosition += recLines.length * 5 + 3;
-            }
+          plan.recommendations.forEach((rec) => {
+            checkPageBreak(15);
+            const recLines = splitText(`✓ ${rec}`, maxWidth - 10, 10);
+            doc.text(recLines, margin + 5, yPosition);
+            yPosition += recLines.length * 5 + 3;
           });
           yPosition += 5;
         }
 
         // Ações imediatas
-        if (recommendation?.actions) {
+        if (recommendation?.immediateActions && plan.actions?.length > 0) {
           checkPageBreak(20);
           doc.setFontSize(14);
           doc.setFont('helvetica', 'bold');
-          doc.setTextColor(75, 85, 99);
+          doc.setTextColor(34, 197, 94); // Verde
           doc.text('Ações Imediatas Selecionadas', margin, yPosition);
           yPosition += 8;
 
@@ -552,14 +560,11 @@ function App() {
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(0, 0, 0);
 
-          recommendation.actions.forEach((action, index) => {
-            const isSelected = plan.selectedActions?.includes(index);
-            if (isSelected) {
-              checkPageBreak(15);
-              const actionLines = splitText(`✓ ${action}`, maxWidth - 10, 10);
-              doc.text(actionLines, margin + 5, yPosition);
-              yPosition += actionLines.length * 5 + 3;
-            }
+          plan.actions.forEach((action) => {
+            checkPageBreak(15);
+            const actionLines = splitText(`✓ ${action}`, maxWidth - 10, 10);
+            doc.text(actionLines, margin + 5, yPosition);
+            yPosition += actionLines.length * 5 + 3;
           });
           yPosition += 5;
         }
@@ -703,7 +708,7 @@ function App() {
    const ImprovementPlanModal = ({ questionCode, onClose, onSave }) => {
      if (!questionCode) return null;
 
-     const recommendation = QUESTION_RECOMMENDATIONS[questionCode];
+     const recommendation = DETAILED_RECOMMENDATIONS[questionCode];
      const [selectedRecommendations, setSelectedRecommendations] = useState([]);
      const [selectedActions, setSelectedActions] = useState([]);
 
@@ -729,10 +734,11 @@ function App() {
        onSave(questionCode, {
          selectedRecommendations,
          selectedActions,
-         recommendations: selectedRecommendations.map(i => recommendation.recommendations[i]),
-         actions: selectedActions.map(i => recommendation.actions[i]),
+         recommendations: selectedRecommendations.map(i => recommendation.strategicActions[i]),
+         actions: selectedActions.map(i => recommendation.immediateActions[i]),
          title: recommendation.title,
-         impact: recommendation.impact
+         impact: recommendation.impact,
+         impactDescription: recommendation.impactDescription
        });
      };
 
@@ -756,71 +762,96 @@ function App() {
                </button>
              </div>
 
-             {/* Questão */}
+             {/* Questão e Dimensão */}
              <div className="mb-6">
-               <h4 className="text-lg font-semibold text-gray-800 mb-2">Questão</h4>
-               <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">
-                 {recommendation.title}
+               <div className="flex items-center gap-2 mb-3">
+                 <span className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-semibold rounded-full">
+                   {recommendation.dimension}
+                 </span>
+                 <span className="px-3 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded-full">
+                   Impacto: {recommendation.impact}
+                 </span>
+               </div>
+               <h4 className="text-lg font-semibold text-gray-800 mb-2">{recommendation.title}</h4>
+               <p className="text-gray-600 text-sm bg-gray-50 p-4 rounded-lg">
+                 {recommendation.strategicRecommendation}
                </p>
              </div>
 
-             {/* Seleção de Recomendações */}
+             {/* Seleção de Recomendações Estratégicas */}
              <div className="mb-6">
                <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                  <Lightbulb className="w-5 h-5 text-blue-600" />
                  Recomendações Estratégicas
                </h4>
+               <p className="text-sm text-gray-600 mb-3">
+                 Selecione as recomendações que deseja incluir no Plano PSDigQual
+               </p>
                <div className="space-y-3">
-                 {recommendation.recommendations.map((rec, index) => (
-                   <label key={index} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition-colors">
+                 {recommendation.strategicActions.map((rec, index) => (
+                   <label key={index} className="flex items-start gap-3 p-3 border-2 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors">
                      <input
                        type="checkbox"
                        checked={selectedRecommendations.includes(index)}
                        onChange={() => handleRecommendationToggle(index)}
-                       className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                       className="mt-1 w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                      />
-                     <span className="text-gray-700 text-sm">{rec}</span>
+                     <span className="text-gray-700 text-sm leading-relaxed">{rec}</span>
                    </label>
                  ))}
                </div>
              </div>
 
-             {/* Seleção de Ações */}
+             {/* Seleção de Ações Imediatas */}
              <div className="mb-6">
                <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                  <Zap className="w-5 h-5 text-green-600" />
                  Ações Imediatas
                </h4>
+               <p className="text-sm text-gray-600 mb-3">
+                 Selecione as ações que deseja incluir no Plano PSDigQual
+               </p>
                <div className="space-y-3">
-                 {recommendation.actions.map((action, index) => (
-                   <label key={index} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-green-50 cursor-pointer transition-colors">
+                 {recommendation.immediateActions.map((action, index) => (
+                   <label key={index} className="flex items-start gap-3 p-3 border-2 rounded-lg hover:bg-green-50 cursor-pointer transition-colors">
                      <input
                        type="checkbox"
                        checked={selectedActions.includes(index)}
                        onChange={() => handleActionToggle(index)}
-                       className="mt-1 w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                       className="mt-1 w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
                      />
-                     <span className="text-gray-700 text-sm">{action}</span>
+                     <span className="text-gray-700 text-sm leading-relaxed">{action}</span>
                    </label>
                  ))}
                </div>
              </div>
 
              {/* Botões */}
-             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-               <button
-                 onClick={onClose}
-                 className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-               >
-                 Cancelar
-               </button>
-               <button
-                 onClick={handleSave}
-                 disabled={selectedRecommendations.length === 0 && selectedActions.length === 0}
-                 className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-               >
-                 Salvar Seleções
-               </button>
+             <div className="flex justify-between items-center gap-3 pt-4 border-t border-gray-200">
+               <div className="text-sm text-gray-600">
+                 {selectedRecommendations.length + selectedActions.length > 0 ? (
+                   <span className="text-blue-600 font-medium">
+                     {selectedRecommendations.length + selectedActions.length} ações selecionadas
+                   </span>
+                 ) : (
+                   <span>Selecione pelo menos uma ação</span>
+                 )}
+               </div>
+               <div className="flex gap-3">
+                 <button
+                   onClick={onClose}
+                   className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                 >
+                   Cancelar
+                 </button>
+                 <button
+                   onClick={handleSave}
+                   disabled={selectedRecommendations.length === 0 && selectedActions.length === 0}
+                   className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+                 >
+                   Salvar Seleções
+                 </button>
+               </div>
              </div>
            </div>
          </div>
@@ -1128,6 +1159,17 @@ function App() {
                                           />
                                         </div>
                                       </div>
+                                    </div>
+
+                                    {/* Botão para Selecionar Ações */}
+                                    <div className="flex justify-center pt-4 border-t border-gray-200">
+                                      <button 
+                                        onClick={() => handleStartImprovementPlan(item.code)}
+                                        className="flex items-center space-x-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-md hover:shadow-lg"
+                                      >
+                                        <Target size={18} />
+                                        <span className="font-medium">Selecionar Ações para Plano PSDigQual</span>
+                                      </button>
                                     </div>
                                   </div>
                                 );

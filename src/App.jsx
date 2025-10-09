@@ -10,6 +10,7 @@ import FileUpload from './components/FileUpload';
 import { ProfileCharts } from './components/ProfileCharts';
 import { RecommendationsPanel } from './components/RecommendationsPanel';
 import { RecommendationsPage } from './components/RecommendationsPage';
+import { DETAILED_RECOMMENDATIONS } from './data/recommendations';
 import { BarChart3, Upload, TrendingUp, Users, AlertTriangle, CheckCircle, Clock, Lightbulb, Menu, X, ChevronDown, ChevronUp, Info, Target, Zap } from 'lucide-react';
 import './App.css';
 
@@ -1011,123 +1012,126 @@ function App() {
                             </div>
                           </div>
                           
-                          {isExpanded && recommendation && (
+                          {isExpanded && (
                             <div className="border-t border-red-200 bg-white p-6">
-                              <div className="space-y-6">
-                                {/* Cabeçalho */}
-                                <div className="flex items-start space-x-3">
-                                  <div className="p-2 bg-red-100 rounded-lg">
-                                    <Target size={20} className="text-red-600" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <h4 className="font-bold text-gray-900 text-lg mb-2">
-                                      Plano de Melhoria para {item.code}
-                                    </h4>
-                                    <p className="text-gray-700 text-sm mb-4">
-                                      {recommendation.title}
-                                    </p>
-                                    <div className="flex items-center space-x-4 text-sm">
-                                      <div className="flex items-center space-x-1">
-                                        <AlertTriangle size={14} className="text-red-500" />
+                              {(() => {
+                                const detailedRec = DETAILED_RECOMMENDATIONS[item.code];
+                                if (!detailedRec) return null;
+                                
+                                const goal = 4.0;
+                                const intermediateGoal = 3.5;
+                                const progress = ((item.average / goal) * 100);
+                                
+                                return (
+                                  <div className="space-y-6">
+                                    {/* Cabeçalho com ícone */}
+                                    <div className="flex items-start space-x-3">
+                                      <div className="p-3 bg-red-100 rounded-lg">
+                                        <Target size={24} className="text-red-600" />
+                                      </div>
+                                      <div className="flex-1">
+                                        <h4 className="font-bold text-gray-900 text-xl mb-2">
+                                          Plano de Melhoria para {item.code}
+                                        </h4>
+                                        <p className="text-gray-700 text-base mb-4">
+                                          {detailedRec.title}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {/* Impacto e Meta */}
+                                    <div className="flex flex-wrap items-center gap-4 text-sm pb-4 border-b border-gray-200">
+                                      <div className="flex items-center space-x-2 bg-red-50 px-4 py-2 rounded-lg">
+                                        <AlertTriangle size={16} className="text-red-500" />
                                         <span className="text-red-700 font-medium">
-                                          Impacto: {recommendation.impact}
+                                          Impacto: {detailedRec.impact} - {detailedRec.impactDescription}
                                         </span>
                                       </div>
-                                      <div className="flex items-center space-x-1">
-                                        <Info size={14} className="text-blue-500" />
+                                      <div className="flex items-center space-x-2 bg-blue-50 px-4 py-2 rounded-lg">
+                                        <Info size={16} className="text-blue-500" />
                                         <span className="text-blue-700">
-                                          Meta: ≥ 4.0 (atual: {item.average.toFixed(1)})
+                                          Meta: ≥ {goal.toFixed(1)} (atual: {item.average.toFixed(1)})
                                         </span>
                                       </div>
                                     </div>
-                                  </div>
-                                </div>
 
-                                {/* Recomendações */}
-                                <div className="grid md:grid-cols-2 gap-6">
-                                  <div className="bg-blue-50 rounded-lg p-4">
-                                    <div className="flex items-center space-x-2 mb-3">
-                                      <Lightbulb size={16} className="text-blue-600" />
-                                      <h5 className="font-semibold text-blue-900">Recomendações Estratégicas</h5>
-                                    </div>
-                                    <ul className="space-y-2">
-                                      {recommendation.recommendations.map((rec, idx) => (
-                                        <li key={idx} className="flex items-start space-x-2 text-sm">
-                                          <CheckCircle size={12} className="text-blue-600 mt-1 flex-shrink-0" />
-                                          <span className="text-blue-800">{rec}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-
-                                  <div className="bg-green-50 rounded-lg p-4">
-                                    <div className="flex items-center space-x-2 mb-3">
-                                      <Zap size={16} className="text-green-600" />
-                                      <h5 className="font-semibold text-green-900">Ações Imediatas</h5>
-                                    </div>
-                                    <ul className="space-y-2">
-                                      {recommendation.actions.map((action, idx) => (
-                                        <li key={idx} className="flex items-start space-x-2 text-sm">
-                                          <Target size={12} className="text-green-600 mt-1 flex-shrink-0" />
-                                          <span className="text-green-800">{action}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                </div>
-
-                                {/* Métricas de Progresso */}
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                  <h5 className="font-semibold text-gray-900 mb-3 flex items-center space-x-2">
-                                    <TrendingUp size={16} className="text-gray-600" />
-                                    <span>Métricas de Acompanhamento</span>
-                                  </h5>
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                    <div className="text-center">
-                                      <div className="font-bold text-lg text-red-600">{item.average.toFixed(1)}</div>
-                                      <div className="text-gray-600">Atual</div>
-                                    </div>
-                                    <div className="text-center">
-                                      <div className="font-bold text-lg text-yellow-600">3.5</div>
-                                      <div className="text-gray-600">Meta Intermediária</div>
-                                    </div>
-                                    <div className="text-center">
-                                      <div className="font-bold text-lg text-green-600">4.0</div>
-                                      <div className="text-gray-600">Meta Final</div>
-                                    </div>
-                                    <div className="text-center">
-                                      <div className="font-bold text-lg text-blue-600">
-                                        {((item.average / 4.0) * 100).toFixed(0)}%
+                                    {/* Recomendações Estratégicas e Ações Imediatas */}
+                                    <div className="grid md:grid-cols-2 gap-6">
+                                      <div className="bg-blue-50 rounded-lg p-5 border border-blue-200">
+                                        <div className="flex items-center space-x-2 mb-4">
+                                          <Lightbulb size={18} className="text-blue-600" />
+                                          <h5 className="font-semibold text-blue-900 text-base">Recomendações Estratégicas</h5>
+                                        </div>
+                                        <ul className="space-y-3">
+                                          {detailedRec.strategicActions.map((rec, idx) => (
+                                            <li key={idx} className="flex items-start space-x-2">
+                                              <CheckCircle size={14} className="text-blue-600 mt-1 flex-shrink-0" />
+                                              <span className="text-blue-900 text-sm leading-relaxed">{rec}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
                                       </div>
-                                      <div className="text-gray-600">Progresso</div>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="mt-4">
-                                    <div className="flex justify-between text-xs text-gray-600 mb-1">
-                                      <span>Progresso para Meta</span>
-                                      <span>{((item.average / 4.0) * 100).toFixed(1)}%</span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                      <div 
-                                        className="bg-gradient-to-r from-red-500 to-yellow-500 h-2 rounded-full transition-all duration-500"
-                                        style={{ width: `${Math.min((item.average / 4.0) * 100, 100)}%` }}
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
 
-                                {/* Botão de Ação */}
-                                <div className="flex justify-center pt-4 border-t border-gray-200">
-                                  <button 
-                                    onClick={() => handleStartImprovementPlan(item.code)}
-                                    className="flex items-center space-x-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                                  >
-                                    <Target size={16} />
-                                    <span>Iniciar Plano de Melhoria</span>
-                                  </button>
-                                </div>
-                              </div>
+                                      <div className="bg-green-50 rounded-lg p-5 border border-green-200">
+                                        <div className="flex items-center space-x-2 mb-4">
+                                          <Zap size={18} className="text-green-600" />
+                                          <h5 className="font-semibold text-green-900 text-base">Ações Imediatas</h5>
+                                        </div>
+                                        <ul className="space-y-3">
+                                          {detailedRec.immediateActions.map((action, idx) => (
+                                            <li key={idx} className="flex items-start space-x-2">
+                                              <CheckCircle size={14} className="text-green-600 mt-1 flex-shrink-0" />
+                                              <span className="text-green-900 text-sm leading-relaxed">{action}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    </div>
+
+                                    {/* Métricas de Acompanhamento */}
+                                    <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                                      <h5 className="font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                                        <TrendingUp size={18} className="text-gray-600" />
+                                        <span>Métricas de Acompanhamento</span>
+                                      </h5>
+                                      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                                        <div className="text-center">
+                                          <div className="font-bold text-3xl text-red-600 mb-1">{item.average.toFixed(1)}</div>
+                                          <div className="text-sm text-gray-600 font-medium">Atual</div>
+                                        </div>
+                                        <div className="text-center">
+                                          <div className="font-bold text-3xl text-yellow-600 mb-1">{intermediateGoal.toFixed(1)}</div>
+                                          <div className="text-sm text-gray-600 font-medium">Meta Intermediária</div>
+                                        </div>
+                                        <div className="text-center">
+                                          <div className="font-bold text-3xl text-green-600 mb-1">{goal.toFixed(1)}</div>
+                                          <div className="text-sm text-gray-600 font-medium">Meta Final</div>
+                                        </div>
+                                        <div className="text-center">
+                                          <div className="font-bold text-3xl text-blue-600 mb-1">
+                                            {progress.toFixed(0)}%
+                                          </div>
+                                          <div className="text-sm text-gray-600 font-medium">Progresso</div>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Barra de Progresso */}
+                                      <div className="mt-4">
+                                        <div className="flex justify-between text-xs text-gray-600 mb-2">
+                                          <span className="font-medium">Progresso para Meta</span>
+                                          <span className="font-semibold">{progress.toFixed(1)}%</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-3">
+                                          <div 
+                                            className="bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 h-3 rounded-full transition-all duration-500"
+                                            style={{ width: `${Math.min(progress, 100)}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           )}
                         </div>
@@ -1201,120 +1205,126 @@ function App() {
                             </div>
                           </div>
                           
-                          {isExpanded && recommendation && (
+                          {isExpanded && (
                             <div className="border-t border-green-200 bg-white p-6">
-                              <div className="space-y-6">
-                                {/* Cabeçalho */}
-                                <div className="flex items-start space-x-3">
-                                  <div className="p-2 bg-green-100 rounded-lg">
-                                    <CheckCircle size={20} className="text-green-600" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <h4 className="font-bold text-gray-900 text-lg mb-2">
-                                      Plano de Manutenção para {item.code}
-                                    </h4>
-                                    <p className="text-gray-700 text-sm mb-4">
-                                      {recommendation.title}
-                                    </p>
-                                    <div className="flex items-center space-x-4 text-sm">
-                                      <div className="flex items-center space-x-1">
-                                        <CheckCircle size={14} className="text-green-500" />
+                              {(() => {
+                                const detailedRec = DETAILED_RECOMMENDATIONS[item.code];
+                                if (!detailedRec) return null;
+                                
+                                const goal = 4.0;
+                                const nextGoal = 4.5;
+                                const performance = ((item.average / 5.0) * 100);
+                                
+                                return (
+                                  <div className="space-y-6">
+                                    {/* Cabeçalho com ícone */}
+                                    <div className="flex items-start space-x-3">
+                                      <div className="p-3 bg-green-100 rounded-lg">
+                                        <CheckCircle size={24} className="text-green-600" />
+                                      </div>
+                                      <div className="flex-1">
+                                        <h4 className="font-bold text-gray-900 text-xl mb-2">
+                                          Plano de Manutenção para {item.code}
+                                        </h4>
+                                        <p className="text-gray-700 text-base mb-4">
+                                          {detailedRec.title}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {/* Impacto e Meta */}
+                                    <div className="flex flex-wrap items-center gap-4 text-sm pb-4 border-b border-gray-200">
+                                      <div className="flex items-center space-x-2 bg-green-50 px-4 py-2 rounded-lg">
+                                        <CheckCircle size={16} className="text-green-500" />
                                         <span className="text-green-700 font-medium">
-                                          {recommendation.impact}
+                                          Impacto: {detailedRec.impact} - {detailedRec.impactDescription}
                                         </span>
                                       </div>
-                                      <div className="flex items-center space-x-1">
-                                        <TrendingUp size={14} className="text-blue-500" />
+                                      <div className="flex items-center space-x-2 bg-blue-50 px-4 py-2 rounded-lg">
+                                        <TrendingUp size={16} className="text-blue-500" />
                                         <span className="text-blue-700">
-                                          Meta atingida: {item.average.toFixed(1)} ≥ 4.0
+                                          Meta atingida: {item.average.toFixed(1)} ≥ {goal.toFixed(1)}
                                         </span>
                                       </div>
                                     </div>
-                                  </div>
-                                </div>
 
-                                {/* Recomendações */}
-                                <div className="grid md:grid-cols-2 gap-6">
-                                  <div className="bg-blue-50 rounded-lg p-4">
-                                    <div className="flex items-center space-x-2 mb-3">
-                                      <CheckCircle size={16} className="text-blue-600" />
-                                      <h5 className="font-semibold text-blue-900">Como Manter o Sucesso</h5>
-                                    </div>
-                                    <ul className="space-y-2">
-                                      {recommendation.recommendations.map((rec, idx) => (
-                                        <li key={idx} className="flex items-start space-x-2 text-sm">
-                                          <CheckCircle size={12} className="text-blue-600 mt-1 flex-shrink-0" />
-                                          <span className="text-blue-800">{rec}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-
-                                  <div className="bg-green-50 rounded-lg p-4">
-                                    <div className="flex items-center space-x-2 mb-3">
-                                      <TrendingUp size={16} className="text-green-600" />
-                                      <h5 className="font-semibold text-green-900">Ações de Melhoria Contínua</h5>
-                                    </div>
-                                    <ul className="space-y-2">
-                                      {recommendation.actions.map((action, idx) => (
-                                        <li key={idx} className="flex items-start space-x-2 text-sm">
-                                          <Target size={12} className="text-green-600 mt-1 flex-shrink-0" />
-                                          <span className="text-green-800">{action}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                </div>
-
-                                {/* Métricas de Sucesso */}
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                  <h5 className="font-semibold text-gray-900 mb-3 flex items-center space-x-2">
-                                    <TrendingUp size={16} className="text-gray-600" />
-                                    <span>Métricas de Sucesso</span>
-                                  </h5>
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                    <div className="text-center">
-                                      <div className="font-bold text-lg text-green-600">{item.average.toFixed(1)}</div>
-                                      <div className="text-gray-600">Atual</div>
-                                    </div>
-                                    <div className="text-center">
-                                      <div className="font-bold text-lg text-green-600">4.0</div>
-                                      <div className="text-gray-600">Meta Atingida</div>
-                                    </div>
-                                    <div className="text-center">
-                                      <div className="font-bold text-lg text-blue-600">4.5</div>
-                                      <div className="text-gray-600">Próxima Meta</div>
-                                    </div>
-                                    <div className="text-center">
-                                      <div className="font-bold text-lg text-green-600">
-                                        {((item.average / 4.0) * 100).toFixed(0)}%
+                                    {/* Recomendações Estratégicas e Ações Imediatas */}
+                                    <div className="grid md:grid-cols-2 gap-6">
+                                      <div className="bg-blue-50 rounded-lg p-5 border border-blue-200">
+                                        <div className="flex items-center space-x-2 mb-4">
+                                          <Lightbulb size={18} className="text-blue-600" />
+                                          <h5 className="font-semibold text-blue-900 text-base">Recomendações Estratégicas</h5>
+                                        </div>
+                                        <ul className="space-y-3">
+                                          {detailedRec.strategicActions.map((rec, idx) => (
+                                            <li key={idx} className="flex items-start space-x-2">
+                                              <CheckCircle size={14} className="text-blue-600 mt-1 flex-shrink-0" />
+                                              <span className="text-blue-900 text-sm leading-relaxed">{rec}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
                                       </div>
-                                      <div className="text-gray-600">Performance</div>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="mt-4">
-                                    <div className="flex justify-between text-xs text-gray-600 mb-1">
-                                      <span>Performance Atual</span>
-                                      <span>{((item.average / 5.0) * 100).toFixed(1)}% da escala máxima</span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                      <div 
-                                        className="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full transition-all duration-500"
-                                        style={{ width: `${(item.average / 5.0) * 100}%` }}
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
 
-                                {/* Botão de Ação */}
-                                <div className="flex justify-center pt-4 border-t border-gray-200">
-                                  <button className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                                    <CheckCircle size={16} />
-                                    <span>Implementar Melhoria Contínua</span>
-                                  </button>
-                                </div>
-                              </div>
+                                      <div className="bg-green-50 rounded-lg p-5 border border-green-200">
+                                        <div className="flex items-center space-x-2 mb-4">
+                                          <TrendingUp size={18} className="text-green-600" />
+                                          <h5 className="font-semibold text-green-900 text-base">Ações de Melhoria Contínua</h5>
+                                        </div>
+                                        <ul className="space-y-3">
+                                          {detailedRec.immediateActions.map((action, idx) => (
+                                            <li key={idx} className="flex items-start space-x-2">
+                                              <CheckCircle size={14} className="text-green-600 mt-1 flex-shrink-0" />
+                                              <span className="text-green-900 text-sm leading-relaxed">{action}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    </div>
+
+                                    {/* Métricas de Acompanhamento */}
+                                    <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                                      <h5 className="font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                                        <TrendingUp size={18} className="text-gray-600" />
+                                        <span>Métricas de Acompanhamento</span>
+                                      </h5>
+                                      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                                        <div className="text-center">
+                                          <div className="font-bold text-3xl text-green-600 mb-1">{item.average.toFixed(1)}</div>
+                                          <div className="text-sm text-gray-600 font-medium">Atual</div>
+                                        </div>
+                                        <div className="text-center">
+                                          <div className="font-bold text-3xl text-green-600 mb-1">{goal.toFixed(1)}</div>
+                                          <div className="text-sm text-gray-600 font-medium">Meta Intermediária</div>
+                                        </div>
+                                        <div className="text-center">
+                                          <div className="font-bold text-3xl text-blue-600 mb-1">{nextGoal.toFixed(1)}</div>
+                                          <div className="text-sm text-gray-600 font-medium">Meta Final</div>
+                                        </div>
+                                        <div className="text-center">
+                                          <div className="font-bold text-3xl text-green-600 mb-1">
+                                            {performance.toFixed(0)}%
+                                          </div>
+                                          <div className="text-sm text-gray-600 font-medium">Progresso</div>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Barra de Progresso */}
+                                      <div className="mt-4">
+                                        <div className="flex justify-between text-xs text-gray-600 mb-2">
+                                          <span className="font-medium">Performance Atual</span>
+                                          <span className="font-semibold">{performance.toFixed(1)}% da escala máxima</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-3">
+                                          <div 
+                                            className="bg-gradient-to-r from-green-400 via-green-500 to-green-600 h-3 rounded-full transition-all duration-500"
+                                            style={{ width: `${Math.min(performance, 100)}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           )}
                         </div>
